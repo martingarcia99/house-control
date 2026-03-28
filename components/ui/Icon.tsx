@@ -1,0 +1,135 @@
+import {
+  Zap,
+  Droplets,
+  Flame,
+  Wifi,
+  Home,
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Lightbulb,
+  MessageCircle,
+  Plus,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Check,
+  Bell,
+  Paperclip,
+  Users,
+  ChevronDown,
+  Send,
+  Sparkles,
+  PieChart,
+  BarChart3,
+  Calendar,
+  FileText,
+  Upload,
+  Shield,
+  Trash2,
+  Edit,
+  MoreVertical,
+  Camera,
+} from 'lucide-react'
+
+type IconName = 
+  | 'zap'
+  | 'droplets'
+  | 'flame'
+  | 'wifi'
+  | 'home'
+  | 'credit-card'
+  | 'dollar'
+  | 'trending-up'
+  | 'trending-down'
+  | 'alert'
+  | 'lightbulb'
+  | 'message'
+  | 'plus'
+  | 'settings'
+  | 'logout'
+  | 'menu'
+  | 'x'
+  | 'check'
+  | 'bell'
+  | 'users'
+  | 'chevron-down'
+  | 'send'
+  | 'sparkles'
+  | 'pie-chart'
+  | 'bar-chart'
+  | 'calendar'
+  | 'file'
+  | 'upload'
+  | 'trash'
+  | 'edit'
+  | 'more-vertical'
+  | 'camera'
+  | 'paperclip'
+  | 'shield'
+
+interface IconProps {
+  name: IconName
+  className?: string
+  size?: number
+}
+
+const icons: Record<IconName, React.ComponentType<{ className?: string; size?: number }>> = {
+  'zap': Zap,
+  'droplets': Droplets,
+  'flame': Flame,
+  'wifi': Wifi,
+  'home': Home,
+  'credit-card': CreditCard,
+  'dollar': DollarSign,
+  'trending-up': TrendingUp,
+  'trending-down': TrendingDown,
+  'alert': AlertTriangle,
+  'lightbulb': Lightbulb,
+  'message': MessageCircle,
+  'plus': Plus,
+  'settings': Settings,
+  'logout': LogOut,
+  'menu': Menu,
+  'x': X,
+  'check': Check,
+  'bell': Bell,
+  'users': Users,
+  'chevron-down': ChevronDown,
+  'send': Send,
+  'sparkles': Sparkles,
+  'pie-chart': PieChart,
+  'bar-chart': BarChart3,
+  'calendar': Calendar,
+  'file': FileText,
+  'upload': Upload,
+  'trash': Trash2,
+  'edit': Edit,
+  'more-vertical': MoreVertical,
+  'camera': Camera,
+  'paperclip': Paperclip,
+  'shield': Shield,
+}
+
+export function Icon({ name, className = '', size = 20 }: IconProps) {
+  const IconComponent = icons[name]
+  if (!IconComponent) {
+    return <DollarSign className={className} size={size} />
+  }
+  return <IconComponent className={className} size={size} />
+}
+
+export function getCategoryIcon(iconName?: string | null): IconName {
+  const iconMap: Record<string, IconName> = {
+    'zap': 'zap',
+    'droplets': 'droplets',
+    'flame': 'flame',
+    'wifi': 'wifi',
+    'home': 'home',
+    'credit-card': 'credit-card',
+  }
+  return iconMap[iconName || ''] || 'dollar'
+}
