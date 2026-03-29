@@ -317,7 +317,7 @@ export default function BillsPage() {
                       >
                         <Icon 
                           name={getCategoryIcon(bill.category.icon)} 
-                          style={{ color: bill.category.color }}
+                           style={{ color: bill.category.color ?? '#6b7280' }}
                           size={20}
                         />
                       </div>
@@ -474,7 +474,7 @@ export default function BillsPage() {
                   >
                     <Icon 
                       name={getCategoryIcon(detailBill.category.icon)} 
-                      style={{ color: detailBill.category.color }}
+                       style={{ color: detailBill.category.color ?? '#6b7280' }}
                       size={24}
                     />
                   </div>

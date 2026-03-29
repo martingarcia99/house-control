@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import type { InsightType } from '@prisma/client'
 
 export async function GET(request: Request) {
   try {
@@ -190,7 +191,7 @@ export async function GET(request: Request) {
         await prisma.aIInsight.create({
           data: {
             userId: user.id,
-            type: insight.type,
+            type: insight.type as InsightType,
             title: insight.title,
             content: insight.content,
             category: insight.category,

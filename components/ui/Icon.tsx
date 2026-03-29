@@ -75,9 +75,10 @@ interface IconProps {
   name: IconName
   className?: string
   size?: number
+  style?: React.CSSProperties
 }
 
-const icons: Record<IconName, React.ComponentType<{ className?: string; size?: number }>> = {
+const icons: Record<IconName, React.ComponentType<any>> = {
   'zap': Zap,
   'droplets': Droplets,
   'flame': Flame,
@@ -114,12 +115,12 @@ const icons: Record<IconName, React.ComponentType<{ className?: string; size?: n
   'shield': Shield,
 }
 
-export function Icon({ name, className = '', size = 20 }: IconProps) {
+export function Icon({ name, className = '', size = 20, style }: IconProps) {
   const IconComponent = icons[name]
   if (!IconComponent) {
-    return <DollarSign className={className} size={size} />
+    return <DollarSign className={className} size={size} style={style} />
   }
-  return <IconComponent className={className} size={size} />
+  return <IconComponent className={className} size={size} style={style} />
 }
 
 export function getCategoryIcon(iconName?: string | null): IconName {

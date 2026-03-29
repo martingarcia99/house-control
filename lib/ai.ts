@@ -7,7 +7,7 @@ const groq = new Groq({
 export async function chatCompletion(messages: Array<{ role: string; content: string }>) {
   const response = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
-    messages,
+    messages: messages as any,
     temperature: 0.7,
     max_tokens: 500,
   })
