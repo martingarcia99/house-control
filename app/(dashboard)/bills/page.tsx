@@ -460,13 +460,17 @@ const confirmDelete = useCallback(() => {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ej: Factura de luz febrero"
             />
-            <Input
-              id="issueDate"
-              label="Fecha de emisión"
-              type="date"
-              value={formData.issueDate}
-              onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-            />
+            <div className="w-full">
+              <label htmlFor="issueDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
+              <input
+                id="issueDate"
+                type="date"
+                value={formData.issueDate}
+                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                style={{ maxWidth: '150px' }}
+              />
+            </div>
             <Select
               id="category"
               label="Categoría"

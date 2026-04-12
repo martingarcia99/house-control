@@ -3,7 +3,7 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
-  allowedDevOrigins: ['192.168.1.130'],
+  allowedDevOrigins: ['192.168.1.130', '192.168.1.139'],
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'date-fns'],
   },
