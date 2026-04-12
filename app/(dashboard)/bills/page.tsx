@@ -18,6 +18,9 @@ export default function BillsPage() {
   const [showModal, setShowModal] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletingBillId, setDeletingBillId] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const [detailBill, setDetailBill] = useState<Bill | null>(null)
   const [scanning, setScanning] = useState(false)
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
@@ -30,9 +33,8 @@ export default function BillsPage() {
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
-    dueDate: format(new Date(), 'yyyy-MM-dd'),
+    issueDate: new Date().toISOString().split('T')[0],
     categoryId: '',
-    status: 'PENDING',
   })
 
   const { fetchWithCache, getCachedData, invalidateCache } = useFetchWithCache()
@@ -79,12 +81,19 @@ export default function BillsPage() {
     e.preventDefault()
     if (!household) return
 
+    if (!formData.categoryId || !categories.find(c => c.id === formData.categoryId)) {
+      setFormError('Selecciona una categoría')
+      return
+    }
+
     const url = editingBill ? `/api/bills/${editingBill.id}` : '/api/bills'
     const method = editingBill ? 'PUT' : 'POST'
 
     const payload: Record<string, unknown> = {
-      ...formData,
       amount: parseFloat(formData.amount),
+      description: formData.description || undefined,
+      issueDate: formData.issueDate || undefined,
+      categoryId: formData.categoryId,
       householdId: household.id,
     }
 
@@ -93,6 +102,7 @@ export default function BillsPage() {
     }
 
     try {
+      setFormError(null)
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -108,35 +118,67 @@ export default function BillsPage() {
           setBills([data.bill, ...bills])
         }
         const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+        for (let m = 1; m <= 12; m++) {
+          const dashboardKey = createCacheKey('/api/dashboard', { householdId: household.id, month: m.toString(), year: new Date().getFullYear().toString() })
+          invalidateCache(dashboardKey)
+        }
+        for (let m = 1; m <= 12; m++) {
+          for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear(); y++) {
+            const membersKey = createCacheKey('/api/households/members', { householdId: household.id, month: m.toString(), year: y.toString() })
+            invalidateCache(membersKey)
+          }
+        }
         invalidateCache(billsKey)
         setShowModal(false)
         resetForm()
+      } else {
+        const data = await res.json()
+        setFormError(data.error || 'Error al guardar')
       }
     } catch (error) {
+      setFormError('Error al guardar')
       console.error('Error saving bill:', error)
     }
   }, [household, formData, editingBill, scannedImage, bills, setBills, invalidateCache])
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('¿Eliminar esta factura?')) return
-    
+const confirmDelete = useCallback(() => {
+    if (!deletingBillId) return
+    setShowDeleteModal(false)
+     
     try {
-      const res = await fetch(`/api/bills/${id}`, {
+      fetch(`/api/bills/${deletingBillId}`, {
         method: 'DELETE',
         credentials: 'include',
-      })
-
-      if (res.ok) {
-        setBills(bills.filter(b => b.id !== id))
-        if (household) {
-          const billsKey = createCacheKey('/api/bills', { householdId: household.id })
-          invalidateCache(billsKey)
+      }).then((res) => {
+        if (res.ok) {
+          setBills(bills.filter(b => b.id !== deletingBillId))
+          if (household) {
+            const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+            for (let m = 1; m <= 12; m++) {
+              const dashboardKey = createCacheKey('/api/dashboard', { householdId: household.id, month: m.toString(), year: new Date().getFullYear().toString() })
+              invalidateCache(dashboardKey)
+            }
+            for (let m = 1; m <= 12; m++) {
+              for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear(); y++) {
+                const membersKey = createCacheKey('/api/households/members', { householdId: household.id, month: m.toString(), year: y.toString() })
+                invalidateCache(membersKey)
+              }
+            }
+            invalidateCache(billsKey)
+          }
         }
-      }
+      })
     } catch (error) {
       console.error('Error deleting bill:', error)
+    } finally {
+      setDeletingBillId(null)
     }
-  }, [bills, setBills, household, invalidateCache])
+  }, [deletingBillId, bills, setBills, household, invalidateCache])
+
+  const handleDelete = useCallback((id: string) => {
+    setDeletingBillId(id)
+    setShowDeleteModal(true)
+  }, [])
 
   const handleStatusChange = useCallback(async (id: string, status: string) => {
     try {
@@ -152,6 +194,16 @@ export default function BillsPage() {
         setBills(bills.map(b => b.id === id ? data.bill : b))
         if (household) {
           const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+          for (let m = 1; m <= 12; m++) {
+            const dashboardKey = createCacheKey('/api/dashboard', { householdId: household.id, month: m.toString(), year: new Date().getFullYear().toString() })
+            invalidateCache(dashboardKey)
+          }
+          for (let m = 1; m <= 12; m++) {
+            for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear(); y++) {
+              const membersKey = createCacheKey('/api/households/members', { householdId: household.id, month: m.toString(), year: y.toString() })
+              invalidateCache(membersKey)
+            }
+          }
           invalidateCache(billsKey)
         }
       }
@@ -165,21 +217,21 @@ export default function BillsPage() {
     setFormData({
       amount: '',
       description: '',
-      dueDate: format(new Date(), 'yyyy-MM-dd'),
+      issueDate: new Date().toISOString().split('T')[0],
       categoryId: '',
-      status: 'PENDING',
     })
     setScannedImage(null)
+    setFormError(null)
   }, [])
 
   const openEditModal = useCallback((bill: Bill) => {
     setEditingBill(bill)
+    const issueDateStr = bill.issueDate ? new Date(bill.issueDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
     setFormData({
       amount: bill.amount.toString(),
       description: bill.description || '',
-      dueDate: format(new Date(bill.dueDate), 'yyyy-MM-dd'),
+      issueDate: issueDateStr,
       categoryId: bill.categoryId,
-      status: bill.status,
     })
     setShowModal(true)
   }, [])
@@ -232,7 +284,6 @@ export default function BillsPage() {
           ...prev,
           amount: extracted.amount?.toString() || prev.amount,
           description: extracted.description || prev.description,
-          dueDate: extracted.dueDate || prev.dueDate,
         }))
 
         setShowScanModal(false)
@@ -362,28 +413,18 @@ export default function BillsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500">
-                            {format(new Date(bill.dueDate), "d MMM", { locale: es })}
-                          </span>
-                          <span className="text-gray-300">•</span>
                           <span className="text-xs text-gray-500">{bill.category.name}</span>
+                          <span className="text-xs text-gray-400">
+                            {bill.issueDate ? format(new Date(bill.issueDate), 'd MMM yyyy', { locale: es }) : ''}
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <p className="font-semibold text-sm">{bill.amount.toFixed(2)}€</p>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getStatusColorsMemo[bill.status]}`}>
-                        {getStatusLabel(bill.status)}
-                      </span>
                     </div>
                   </div>
                   <div className="flex justify-end gap-0.5 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                    {bill.status !== 'PAID' && (
-                      <Button variant="ghost" size="sm" className="p-1.5 h-7" onClick={() => handleStatusChange(bill.id, 'PAID')}>
-                        <Icon name="check" size={14} />
-                        <span className="ml-1 text-xs">Pagar</span>
-                      </Button>
-                    )}
                     <Button variant="ghost" size="sm" className="p-1.5 h-7" onClick={() => openEditModal(bill)}>
                       <Icon name="edit" size={14} />
                       <span className="ml-1 text-xs">Editar</span>
@@ -400,32 +441,17 @@ export default function BillsPage() {
 
         <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm() }} title={editingBill ? 'Editar factura' : 'Nueva factura'}>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Importe</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
-                >
-                  <option value="PENDING">Pendiente</option>
-                  <option value="PAID">Pagada</option>
-                  <option value="OVERDUE">Vencida</option>
-                  <option value="CANCELLED">Cancelada</option>
-                </select>
-              </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Importe</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                placeholder="0.00"
+                required
+              />
             </div>
             <Input
               id="description"
@@ -434,24 +460,24 @@ export default function BillsPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ej: Factura de luz febrero"
             />
-            <div className="w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-1 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-xs"
-                required
-              />
-            </div>
+            <Input
+              id="issueDate"
+              label="Fecha de emisión"
+              type="date"
+              value={formData.issueDate}
+              onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+            />
             <Select
               id="category"
               label="Categoría"
               value={formData.categoryId}
-              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-              options={categories.map(c => ({ value: c.id, label: c.name }))}
+              onChange={(e) => { setFormData({ ...formData, categoryId: e.target.value }); setFormError(null) }}
+              options={[{ value: '', label: 'Seleccionar' }, ...categories.map(c => ({ value: c.id, label: c.name }))]}
               required
             />
+            {formError && (
+              <p className="text-sm text-red-600 mt-1">{formError}</p>
+            )}
             <div className="flex gap-2 pt-2">
               <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowModal(false); resetForm() }}>
                 Cancelar
@@ -523,18 +549,10 @@ export default function BillsPage() {
                     <p className="font-semibold text-lg">{detailBill.amount.toFixed(2)}€</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Estado</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColorsMemo[detailBill.status]}`}>
-                      {getStatusLabel(detailBill.status)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Fecha vencimiento</p>
-                    <p className="font-medium">{format(new Date(detailBill.dueDate), 'd MMMM yyyy', { locale: es })}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Pagado por</p>
-                    <p className="font-medium">{detailBill.paidBy.name}</p>
+                    <p className="text-xs text-gray-500">Fecha de emisión</p>
+                    <p className="font-medium">
+                      {detailBill.issueDate ? format(new Date(detailBill.issueDate), 'd MMMM yyyy', { locale: es }) : '-'}
+                    </p>
                   </div>
                 </div>
 
@@ -578,6 +596,21 @@ export default function BillsPage() {
             </div>
             </div>
           )}
+        </Modal>
+
+        <Modal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeletingBillId(null) }} title="Eliminar factura">
+          <div className="text-center py-4">
+            <Icon name="alert" size={48} className="mx-auto text-red-500 mb-4" />
+            <p className="text-gray-600 mb-6">¿Estás seguro de que quieres eliminar esta factura?</p>
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowDeleteModal(false); setDeletingBillId(null) }}>
+                Cancelar
+              </Button>
+              <Button variant="danger" className="flex-1" onClick={confirmDelete}>
+                Eliminar
+              </Button>
+            </div>
+          </div>
         </Modal>
       </main>
     </div>

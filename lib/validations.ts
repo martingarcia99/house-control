@@ -14,10 +14,9 @@ export const loginSchema = z.object({
 export const billSchema = z.object({
   amount: z.number().positive('El importe debe ser positivo'),
   description: z.string().optional(),
-  dueDate: z.string().transform((val) => new Date(val)),
+  issueDate: z.string().optional(),
   categoryId: z.string().min(1, 'La categoría es requerida'),
   householdId: z.string().min(1, 'El hogar es requerido'),
-  status: z.enum(['PENDING', 'PAID', 'OVERDUE', 'CANCELLED']).optional(),
   attachmentUrl: z.string().optional(),
   notes: z.string().optional(),
 })

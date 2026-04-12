@@ -9,8 +9,8 @@ function Skeleton({ className = '' }: { className?: string }) {
 export const DashboardSkeleton = memo(function DashboardSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+        {Array.from({ length: 2 }).map((_, i) => (
           <div key={i} className="bg-white rounded-lg p-3 border border-gray-100">
             <Skeleton className="h-3 w-16 mb-2" />
             <Skeleton className="h-6 w-24" />

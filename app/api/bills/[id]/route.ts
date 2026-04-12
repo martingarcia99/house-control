@@ -89,9 +89,14 @@ export async function PUT(
     const body = await request.json()
     const validatedData = billSchema.partial().parse(body)
 
+    const updateData: Record<string, unknown> = { ...validatedData }
+    if (validatedData.issueDate) {
+      updateData.issueDate = new Date(validatedData.issueDate)
+    }
+
     const updatedBill = await prisma.bill.update({
       where: { id },
-      data: validatedData,
+      data: updateData,
       include: {
         category: true,
         paidBy: {
@@ -99,18 +104,6 @@ export async function PUT(
         },
       },
     })
-
-    if (validatedData.status === 'PAID' && bill.status !== 'PAID') {
-      await prisma.payment.upsert({
-        where: { billId_userId: { billId: bill.id, userId: user.id } },
-        update: { amount: validatedData.amount || bill.amount, date: new Date() },
-        create: {
-          billId: bill.id,
-          userId: user.id,
-          amount: validatedData.amount || bill.amount,
-        },
-      })
-    }
 
     return NextResponse.json({ bill: updatedBill })
   } catch (error: unknown) {

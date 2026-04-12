@@ -22,6 +22,8 @@ import {
   Paperclip,
   Users,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Send,
   Sparkles,
   PieChart,
@@ -34,6 +36,7 @@ import {
   Edit,
   MoreVertical,
   Camera,
+  Building,
 } from 'lucide-react'
 
 type IconName = 
@@ -58,6 +61,8 @@ type IconName =
   | 'bell'
   | 'users'
   | 'chevron-down'
+  | 'chevron-left'
+  | 'chevron-right'
   | 'send'
   | 'sparkles'
   | 'pie-chart'
@@ -71,6 +76,7 @@ type IconName =
   | 'camera'
   | 'paperclip'
   | 'shield'
+  | 'building'
 
 interface IconProps {
   name: IconName
@@ -101,6 +107,8 @@ const icons: Record<IconName, React.ComponentType<any>> = {
   'bell': Bell,
   'users': Users,
   'chevron-down': ChevronDown,
+  'chevron-left': ChevronLeft,
+  'chevron-right': ChevronRight,
   'send': Send,
   'sparkles': Sparkles,
   'pie-chart': PieChart,
@@ -114,6 +122,7 @@ const icons: Record<IconName, React.ComponentType<any>> = {
   'camera': Camera,
   'paperclip': Paperclip,
   'shield': Shield,
+  'building': Building,
 }
 
 function Icon({ name, className = '', size = 20, style }: IconProps) {
@@ -135,6 +144,7 @@ export function getCategoryIcon(iconName?: string | null): IconName {
     'wifi': 'wifi',
     'home': 'home',
     'credit-card': 'credit-card',
+    'building': 'building',
   }
   return iconMap[iconName || ''] || 'dollar'
 }

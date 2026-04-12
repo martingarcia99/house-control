@@ -89,8 +89,8 @@ export async function POST(request: Request) {
     const startOfLastMonth = new Date(currentYear, currentMonth - 1, 1)
     const endOfLastMonth = new Date(currentYear, currentMonth, 0)
 
-    const currentBills = allBills.filter(b => b.dueDate >= startOfMonth && b.dueDate <= endOfMonth)
-    const lastMonthBills = allBills.filter(b => b.dueDate >= startOfLastMonth && b.dueDate <= endOfLastMonth)
+    const currentBills = allBills.filter(b => b.issueDate && b.issueDate >= startOfMonth && b.issueDate <= endOfMonth)
+    const lastMonthBills = allBills.filter(b => b.issueDate && b.issueDate >= startOfLastMonth && b.issueDate <= endOfLastMonth)
 
     const currentTotal = currentBills
       .filter((b) => b.status === 'PAID')
@@ -114,9 +114,9 @@ export async function POST(request: Request) {
         return acc
       }, {} as Record<string, number>)
 
-    const paidBills = allBills.filter(b => b.status === 'PAID')
+    const paidBills = allBills.filter(b => b.status === 'PAID' && b.issueDate)
     const totalSpent = paidBills.reduce((sum, b) => sum + b.amount, 0)
-    const months = new Set(paidBills.map(b => `${b.dueDate.getFullYear()}-${b.dueDate.getMonth()}`)).size
+    const months = new Set(paidBills.map(b => `${b.issueDate!.getFullYear()}-${b.issueDate!.getMonth()}`)).size
     const avgMonthly = months > 0 ? totalSpent / months : 0
 
     const systemPrompt = `Eres un asistente financiero experto llamado "CasaControl AI". Tu trabajo es ayudar a los usuarios a entender sus gastos del hogar y ofrecerles consejos prácticos para ahorrar dinero.

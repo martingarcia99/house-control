@@ -74,7 +74,8 @@ model Bill {
   id            String        @id @default(cuid())
   amount        Float
   description   String?
-  dueDate       DateTime
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
   categoryId    String
   householdId   String
   paidById      String

@@ -38,18 +38,18 @@ export async function GET(request: Request) {
           id: true,
           amount: true,
           description: true,
+          issueDate: true,
           dueDate: true,
           categoryId: true,
           householdId: true,
           paidById: true,
-          status: true,
           attachmentUrl: true,
           notes: true,
           createdAt: true,
           category: { select: { id: true, name: true, icon: true, color: true } },
           paidBy: { select: { id: true, name: true } },
         },
-        orderBy: { dueDate: 'desc' },
+        orderBy: { createdAt: 'desc' },
       }),
       prisma.category.findMany({
         where: {
@@ -100,11 +100,10 @@ export async function POST(request: Request) {
       data: {
         amount: validatedData.amount,
         description: validatedData.description,
-        dueDate: validatedData.dueDate,
+        issueDate: validatedData.issueDate ? new Date(validatedData.issueDate) : new Date(),
         categoryId: validatedData.categoryId,
         householdId: validatedData.householdId,
         paidById: user.id,
-        status: validatedData.status || 'PENDING',
         attachmentUrl: validatedData.attachmentUrl,
         notes: validatedData.notes,
       },
@@ -115,16 +114,6 @@ export async function POST(request: Request) {
         },
       },
     })
-
-    if (bill.status === 'PAID') {
-      await prisma.payment.create({
-        data: {
-          billId: bill.id,
-          userId: user.id,
-          amount: bill.amount,
-        },
-      })
-    }
 
     return NextResponse.json({ bill })
   } catch (error: unknown) {

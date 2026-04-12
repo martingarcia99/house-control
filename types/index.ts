@@ -25,15 +25,14 @@ export interface Bill {
   id: string
   amount: number
   description?: string | null
-  dueDate: string
+  issueDate: string
+  dueDate?: string | null
   categoryId: string
   householdId: string
   paidById: string
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED'
   attachmentUrl?: string | null
   notes?: string | null
   createdAt: string
-  updatedAt: string
   category: Category
   paidBy: {
     id: string
@@ -46,11 +45,6 @@ export interface DashboardSummary {
   currentMonthTotal: number
   lastMonthTotal: number
   monthOverMonthChange: number
-  pendingCount: number
-  pendingTotal: number
-  overdueCount: number
-  overdueTotal: number
-  totalSpent: number
   averageMonthly: number
 }
 
