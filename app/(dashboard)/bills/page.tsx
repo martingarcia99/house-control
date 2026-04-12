@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo, memo, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, Button, Input, Select, Modal, Icon, getCategoryIcon } from '@/components/ui'
-import { Navigation } from '@/components/Navigation'
+import { BillsSkeleton } from '@/components/ui/Skeleton'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -57,16 +57,13 @@ export default function BillsPage() {
       if (!household) return
       
       try {
-        const [billsRes, catsRes] = await Promise.all([
-          fetch(`/api/bills?householdId=${household.id}`, { credentials: 'include' }),
-          fetch(`/api/categories?householdId=${household.id}`, { credentials: 'include' }),
-        ])
+        const res = await fetch(`/api/bills?householdId=${household.id}`, { credentials: 'include' })
+        const data = await res.json()
         
-        const billsData = await billsRes.json()
-        const catsData = await catsRes.json()
-        
-        if (billsRes.ok) setBills(billsData.bills)
-        if (catsRes.ok) setCategories(catsData.categories)
+        if (res.ok) {
+          setBills(data.bills)
+          setCategories(data.categories)
+        }
       } catch (error) {
         console.error('Error fetching bills:', error)
       } finally {
@@ -262,8 +259,19 @@ export default function BillsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
+          <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Facturas</h1>
+            <div className="flex gap-2">
+              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse" />
+              <div className="w-16 h-8 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-2 md:px-4 py-4">
+          <BillsSkeleton />
+        </main>
       </div>
     )
   }
@@ -547,7 +555,6 @@ export default function BillsPage() {
           )}
         </Modal>
       </main>
-      <Navigation />
     </div>
   )
 }

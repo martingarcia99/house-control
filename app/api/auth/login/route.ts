@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { verifyPassword, generateToken, setAuthCookie, getCurrentUser } from '@/lib/auth'
 import { loginSchema } from '@/lib/validations'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -10,6 +12,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email: validatedData.email },
+      select: { id: true, email: true, name: true, avatarUrl: true, password: true },
     })
 
     if (!user) {
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
 
     const householdMember = await prisma.householdMember.findFirst({
       where: { userId: user.id },
-      include: { household: true },
+      include: { household: { select: { id: true, name: true } } },
     })
 
     return NextResponse.json({
@@ -72,7 +75,7 @@ export async function GET() {
 
     const householdMember = await prisma.householdMember.findFirst({
       where: { userId: user.id },
-      include: { household: true },
+      include: { household: { select: { id: true, name: true } } },
     })
 
     return NextResponse.json({

@@ -45,6 +45,8 @@ model HouseholdMember {
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   @@unique([userId, householdId])
+  @@index([userId])
+  @@index([householdId])
 }
 
 enum Role {
@@ -65,6 +67,7 @@ model Category {
   bills Bill[]
 
   @@unique([name, householdId])
+  @@index([householdId])
 }
 
 model Bill {
@@ -85,6 +88,11 @@ model Bill {
   household Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
   paidBy    User       @relation(fields: [paidById], references: [id])
   payments  Payment[]
+
+  @@index([householdId, dueDate])
+  @@index([householdId, status])
+  @@index([householdId, categoryId])
+  @@index([paidById])
 }
 
 enum BillStatus {
@@ -106,6 +114,8 @@ model Payment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([billId, userId])
+  @@index([billId])
+  @@index([userId])
 }
 
 model AIInsight {
@@ -120,6 +130,9 @@ model AIInsight {
   createdAt  DateTime     @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
 }
 
 enum InsightType {
@@ -138,6 +151,9 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
 }
 
 enum MessageRole {

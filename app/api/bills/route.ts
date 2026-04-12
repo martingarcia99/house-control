@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { billSchema } from '@/lib/validations'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser()
@@ -12,9 +14,6 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const householdId = searchParams.get('householdId')
-    const status = searchParams.get('status')
-    const month = searchParams.get('month')
-    const year = searchParams.get('year')
 
     if (!householdId) {
       return NextResponse.json({ error: 'Hogar no especificado' }, { status: 400 })
@@ -25,51 +24,48 @@ export async function GET(request: Request) {
         userId: user.id,
         householdId,
       },
+      select: { id: true },
     })
 
     if (!member) {
       return NextResponse.json({ error: 'No perteneces a este hogar' }, { status: 403 })
     }
 
-    const where: Record<string, unknown> = { householdId }
-
-    if (status) {
-      where.status = status
-    }
-
-    if (month && year) {
-      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1)
-      const endDate = new Date(parseInt(year), parseInt(month), 0)
-      where.dueDate = {
-        gte: startDate,
-        lte: endDate,
-      }
-    }
-
-    const bills = await prisma.bill.findMany({
-      where,
-      select: {
-        id: true,
-        amount: true,
-        description: true,
-        dueDate: true,
-        categoryId: true,
-        householdId: true,
-        paidById: true,
-        status: true,
-        attachmentUrl: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        category: true,
-        paidBy: {
-          select: { id: true, name: true, avatarUrl: true },
+    const [bills, categories] = await Promise.all([
+      prisma.bill.findMany({
+        where: { householdId },
+        select: {
+          id: true,
+          amount: true,
+          description: true,
+          dueDate: true,
+          categoryId: true,
+          householdId: true,
+          paidById: true,
+          status: true,
+          attachmentUrl: true,
+          notes: true,
+          createdAt: true,
+          category: { select: { id: true, name: true, icon: true, color: true } },
+          paidBy: { select: { id: true, name: true } },
         },
-      },
-      orderBy: { dueDate: 'desc' },
-    })
+        orderBy: { dueDate: 'desc' },
+      }),
+      prisma.category.findMany({
+        where: {
+          OR: [
+            { householdId },
+            { householdId: null, isDefault: true },
+          ],
+        },
+        orderBy: [
+          { isDefault: 'desc' },
+          { name: 'asc' },
+        ],
+      }),
+    ])
 
-    return NextResponse.json({ bills })
+    return NextResponse.json({ bills, categories })
   } catch (error) {
     console.error('Error al obtener facturas:', error)
     return NextResponse.json(

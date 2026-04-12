@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
   Zap,
   Droplets,
@@ -115,13 +116,16 @@ const icons: Record<IconName, React.ComponentType<any>> = {
   'shield': Shield,
 }
 
-export function Icon({ name, className = '', size = 20, style }: IconProps) {
+function Icon({ name, className = '', size = 20, style }: IconProps) {
   const IconComponent = icons[name]
   if (!IconComponent) {
     return <DollarSign className={className} size={size} style={style} />
   }
   return <IconComponent className={className} size={size} style={style} />
 }
+
+const MemoizedIcon = memo(Icon)
+export { MemoizedIcon as Icon }
 
 export function getCategoryIcon(iconName?: string | null): IconName {
   const iconMap: Record<string, IconName> = {

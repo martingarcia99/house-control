@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, Button, Input, Modal } from '@/components/ui'
-import { Navigation } from '@/components/Navigation'
 import { Icon } from '@/components/ui'
 
 interface UserData {
@@ -197,8 +196,6 @@ export default function ProfilePage() {
           </div>
         </form>
       </Modal>
-
-      <Navigation />
     </div>
   )
 }

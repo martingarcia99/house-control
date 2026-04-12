@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
-import { Card, CardContent, CardHeader, Button, Icon } from '@/components/ui'
-import { Navigation } from '@/components/Navigation'
+import { Card, CardContent, Button, Icon } from '@/components/ui'
 import { format } from 'date-fns'
 
 interface Message {
@@ -25,9 +24,7 @@ export default function ChatPage() {
       
       try {
         const res = await fetch('/api/ai/chat', { credentials: 'include' })
-        const text = await res.text()
-        console.log('Chat API response:', res.status, text)
-        const data = JSON.parse(text)
+        const data = await res.json()
         if (res.ok) setChatMessages(data.messages || [])
       } catch (error) {
         console.error('Error fetching messages:', error)
@@ -85,7 +82,7 @@ export default function ChatPage() {
 
   return (
     <div className="h-[100dvh] bg-gray-50 flex flex-col overflow-hidden">
-      <header className="bg-white border-b border-gray-200 px-4 pt-4 md:pt-safe pb-3 flex-shrink-0 fixed top-0 left-0 right-0 z-50">
+      <header className="bg-white border-b border-gray-200 px-4 pt-4 md:pt-safe pb-3 flex-shrink-0">
         <div className="max-w-4xl mx-auto flex items-center gap-2">
           <Icon name="sparkles" className="text-primary-600 flex-shrink-0" size={22} />
           <div className="min-w-0">
@@ -95,7 +92,7 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full flex flex-col min-h-0 overflow-hidden pt-[4.5rem] pb-12">
+      <main className="flex-1 max-w-4xl mx-auto w-full flex flex-col min-h-0 overflow-hidden pb-12">
         <Card className="flex-1 flex flex-col min-h-0 mx-2 md:mx-4 mb-0 overflow-hidden">
           <CardContent className="flex-1 overflow-y-auto p-3 space-y-3">
             {chatMessages.length === 0 ? (
@@ -117,58 +114,48 @@ export default function ChatPage() {
                 </div>
               </div>
             ) : (
-              chatMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}
-                >
+              <>
+                {chatMessages.map((msg) => (
                   <div
-                    className={`max-w-[80%] px-4 py-2 rounded-2xl ${
-                      msg.role === 'USER'
-                        ? 'bg-primary-600 text-white rounded-br-md'
-                        : 'bg-gray-100 text-gray-900 rounded-bl-md'
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${msg.role === 'USER' ? 'text-primary-200' : 'text-gray-500'}`}>
-                      {msg.createdAt ? format(new Date(msg.createdAt), 'HH:mm') : ''}
-                    </p>
+                    <div
+                      className={`max-w-[80%] px-3 py-2 rounded-lg ${
+                        msg.role === 'USER'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-900'
+                      }`}
+                    >
+                      <p className="text-sm">{msg.content}</p>
+                      <p className={`text-[10px] mt-1 ${msg.role === 'USER' ? 'text-primary-200' : 'text-gray-500'}`}>
+                        {format(new Date(msg.createdAt), 'HH:mm')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                <div ref={messagesEndRef} />
+              </>
             )}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 px-4 py-2 rounded-2xl rounded-bl-md">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
           </CardContent>
         </Card>
-        
-        <div className="flex-shrink-0 px-2 md:px-4 py-1 bg-gray-50">
-          <form onSubmit={handleSend} className="flex gap-2 max-w-4xl mx-auto">
+
+        <form onSubmit={handleSend} className="p-2 bg-white border-t border-gray-200">
+          <div className="flex gap-2 max-w-4xl mx-auto">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu pregunta..."
-              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
               disabled={loading}
             />
             <Button type="submit" disabled={loading || !input.trim()}>
               <Icon name="send" size={18} />
             </Button>
-          </form>
-        </div>
+          </div>
+        </form>
       </main>
-      <Navigation />
     </div>
   )
 }

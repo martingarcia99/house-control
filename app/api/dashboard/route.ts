@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser()
@@ -17,10 +19,8 @@ export async function GET(request: Request) {
     }
 
     const member = await prisma.householdMember.findFirst({
-      where: {
-        userId: user.id,
-        householdId,
-      },
+      where: { userId: user.id, householdId },
+      select: { id: true },
     })
 
     if (!member) {
@@ -30,126 +30,100 @@ export async function GET(request: Request) {
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
-
     const startOfMonth = new Date(currentYear, currentMonth, 1)
-    const endOfMonth = new Date(currentYear, currentMonth + 1, 0)
-
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
     const startOfLastMonth = new Date(currentYear, currentMonth - 1, 1)
-    const endOfLastMonth = new Date(currentYear, currentMonth, 0)
+    const endOfLastMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59)
+    const sixMonthsAgo = new Date(currentYear, currentMonth - 5, 1)
 
-    const [currentMonthBills, lastMonthBills, allTimeBills] = await Promise.all([
-      prisma.bill.findMany({
-        where: {
-          householdId,
-          dueDate: { gte: startOfMonth, lte: endOfMonth },
-        },
-        include: { category: true },
-      }),
-      prisma.bill.findMany({
-        where: {
-          householdId,
-          dueDate: { gte: startOfLastMonth, lte: endOfLastMonth },
-        },
-        include: { category: true },
-      }),
-      prisma.bill.findMany({
-        where: {
-          householdId,
-        },
-        include: { category: true },
-      }),
+    const [summaryStats, categoryData, monthlyTrend] = await Promise.all([
+      prisma.$queryRaw<Array<{
+        current_total: number
+        last_total: number
+        all_total: number
+        pending_total: number
+        pending_count: number
+        overdue_total: number
+        overdue_count: number
+      }>>`
+        SELECT 
+          COALESCE(SUM(CASE WHEN "dueDate" >= ${startOfMonth} AND "dueDate" <= ${endOfMonth} THEN "amount" ELSE 0 END), 0) as current_total,
+          COALESCE(SUM(CASE WHEN "dueDate" >= ${startOfLastMonth} AND "dueDate" <= ${endOfLastMonth} THEN "amount" ELSE 0 END), 0) as last_total,
+          COALESCE(SUM("amount"), 0) as all_total,
+          COALESCE(SUM(CASE WHEN "status" IN ('PENDING', 'OVERDUE') THEN "amount" ELSE 0 END), 0) as pending_total,
+          COUNT(CASE WHEN "status" IN ('PENDING', 'OVERDUE') THEN 1 END) as pending_count,
+          COALESCE(SUM(CASE WHEN "status" = 'OVERDUE' THEN "amount" ELSE 0 END), 0) as overdue_total,
+          COUNT(CASE WHEN "status" = 'OVERDUE' THEN 1 END) as overdue_count
+        FROM "Bill"
+        WHERE "householdId" = ${householdId}
+      `,
+      prisma.$queryRaw<Array<{
+        category_name: string
+        category_color: string
+        cat_total: number
+      }>>`
+        SELECT 
+          c.name as category_name,
+          COALESCE(c.color, '#888') as category_color,
+          COALESCE(SUM(b."amount"), 0) as cat_total
+        FROM "Bill" b
+        JOIN "Category" c ON b."categoryId" = c.id
+        WHERE b."householdId" = ${householdId}
+        GROUP BY c.id
+        ORDER BY cat_total DESC
+      `,
+      prisma.$queryRaw<Array<{ month: string; year: string; total: number }>>`
+        SELECT 
+          EXTRACT(MONTH FROM "dueDate")::text as month,
+          EXTRACT(YEAR FROM "dueDate")::text as year,
+          SUM("amount") as total
+        FROM "Bill"
+        WHERE "householdId" = ${householdId} AND "dueDate" >= ${sixMonthsAgo}
+        GROUP BY EXTRACT(YEAR FROM "dueDate"), EXTRACT(MONTH FROM "dueDate")
+        ORDER BY year, month
+        LIMIT 6
+      `,
     ])
 
-    const allBillsTotal = allTimeBills.reduce((sum, b) => sum + b.amount, 0)
+    const stats = summaryStats[0]
+    const currentMonthTotal = Number(stats?.current_total || 0)
+    const lastTotal = Number(stats?.last_total || 0)
+    const totalSpent = Number(stats?.all_total || 0)
+    const pendingTotal = Number(stats?.pending_total || 0)
+    const pendingCount = Number(stats?.pending_count || 0)
+    const overdueTotal = Number(stats?.overdue_total || 0)
+    const overdueCount = Number(stats?.overdue_count || 0)
 
-    const currentMonthTotal = currentMonthBills.reduce((sum, b) => sum + b.amount, 0)
-    const lastMonthTotal = lastMonthBills.reduce((sum, b) => sum + b.amount, 0)
+    const byCategory = (categoryData || []).map((row) => ({
+      name: row.category_name,
+      amount: Number(row.cat_total),
+      change: 0,
+      color: row.category_color,
+    }))
 
-    const pendingBills = allTimeBills.filter((b) => b.status === 'PENDING')
-    const pendingTotal = pendingBills.reduce((sum, b) => sum + b.amount, 0)
+    const monthlyArray = (Array.isArray(monthlyTrend) ? monthlyTrend : []).map((row: { month: string; year: string; total: number }) => ({
+      month: new Date(`${row.year || '2024'}-${row.month}-01`).toLocaleString('default', { month: 'short' }),
+      amount: Number(row.total) || 0,
+    }))
 
-    const overdueBills = allTimeBills.filter((b) => b.status === 'OVERDUE')
-    const overdueTotal = overdueBills.reduce((sum, b) => sum + b.amount, 0)
-
-    const currentMonthByCategory = currentMonthBills
-      .reduce((acc, b) => {
-        const cat = b.category.name
-        acc[cat] = (acc[cat] || 0) + b.amount
-        return acc
-      }, {} as Record<string, number>)
-
-    const lastMonthByCategory = lastMonthBills
-      .reduce((acc, b) => {
-        const cat = b.category.name
-        acc[cat] = (acc[cat] || 0) + b.amount
-        return acc
-      }, {} as Record<string, number>)
-
-    const allByCategory = allTimeBills.reduce((acc, b) => {
-      const cat = b.category.name
-      acc[cat] = (acc[cat] || 0) + b.amount
-      return acc
-    }, {} as Record<string, number>)
-
-    const categoryData = Object.entries(currentMonthByCategory).map(([name, amount]) => {
-      const lastMonthAmount = lastMonthByCategory[name] || 0
-      const change = lastMonthAmount > 0 ? ((amount - lastMonthAmount) / lastMonthAmount) * 100 : 0
-      return {
-        name,
-        amount,
-        change: Math.round(change * 10) / 10,
-        color: currentMonthBills.find((b) => b.category.name === name)?.category.color || '#888',
-      }
-    })
-
-    const sixMonthsAgo = new Date(currentYear, currentMonth - 5, 1)
-    
-    const recentBills = allTimeBills.filter(b => b.dueDate >= sixMonthsAgo)
-    
-    const monthlyData = recentBills.reduce((acc, bill) => {
-      const month = new Date(bill.dueDate).toLocaleString('default', { month: 'short' })
-      acc[month] = (acc[month] || 0) + bill.amount
-      return acc
-    }, {} as Record<string, number>)
-
-    const totalSpent = allTimeBills
-      .reduce((sum, b) => sum + b.amount, 0)
-
-    const averageMonthly = Object.values(monthlyData).length > 0
-      ? totalSpent / Object.keys(monthlyData).length
-      : 0
-
-    const categoryDataAll = Object.entries(allByCategory).map(([name, amount]) => {
-      const lastMonthAmount = lastMonthByCategory[name] || 0
-      const currentMonthAmount = currentMonthByCategory[name] || 0
-      const change = lastMonthAmount > 0 ? ((currentMonthAmount - lastMonthAmount) / lastMonthAmount) * 100 : 0
-      return {
-        name,
-        amount,
-        change: Math.round(change * 10) / 10,
-        color: allTimeBills.find((b) => b.category.name === name)?.category.color || '#888',
-      }
-    })
+    const averageMonthly = monthlyArray.length > 0 ? totalSpent / monthlyArray.length : currentMonthTotal
 
     return NextResponse.json({
       summary: {
-        currentMonthTotal: Math.round(allBillsTotal * 100) / 100,
-        lastMonthTotal: Math.round(lastMonthTotal * 100) / 100,
-        monthOverMonthChange: lastMonthTotal > 0
-          ? Math.round(((allBillsTotal - lastMonthTotal) / lastMonthTotal) * 100 * 10) / 10
+        currentMonthTotal: Math.round(currentMonthTotal * 100) / 100,
+        lastMonthTotal: Math.round(lastTotal * 100) / 100,
+        monthOverMonthChange: lastTotal > 0
+          ? Math.round(((currentMonthTotal - lastTotal) / lastTotal) * 100 * 10) / 10
           : 0,
-        pendingCount: pendingBills.length,
+        pendingCount,
         pendingTotal: Math.round(pendingTotal * 100) / 100,
-        overdueCount: overdueBills.length,
+        overdueCount,
         overdueTotal: Math.round(overdueTotal * 100) / 100,
-        totalSpent: Math.round(allBillsTotal * 100) / 100,
+        totalSpent: Math.round(totalSpent * 100) / 100,
         averageMonthly: Math.round(averageMonthly * 100) / 100,
       },
-      byCategory: categoryDataAll,
-      monthlyTrend: Object.entries(monthlyData).map(([month, amount]) => ({
-        month,
-        amount: Math.round(amount * 100) / 100,
-      })),
+      byCategory,
+      monthlyTrend: monthlyArray,
     })
   } catch (error) {
     console.error('Error al obtener estadísticas:', error)
