@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       { name: 'Internet', icon: 'wifi', color: '#8b5cf6', isDefault: true },
       { name: 'Alquiler', icon: 'home', color: '#10b981', isDefault: true },
       { name: 'Alarma', icon: 'shield', color: '#f97316', isDefault: true },
+      { name: 'Comunidad', icon: 'building', color: '#0ea5e9', isDefault: true },
       { name: 'Suscripciones', icon: 'credit-card', color: '#ec4899', isDefault: true },
     ]
 
