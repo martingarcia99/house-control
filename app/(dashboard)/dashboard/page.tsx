@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, lazy, Suspense, memo, useCallback } from 'react'
+import { useEffect, useState, lazy, Suspense, memo, useCallback, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
+import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache'
 import { Card, CardContent, CardHeader, Icon } from '@/components/ui'
 import { DashboardSkeleton } from '@/components/ui/Skeleton'
 
@@ -64,39 +65,69 @@ const SummaryCard = memo(function SummaryCard({
   )
 })
 
+const DASHBOARD_CACHE_KEY = 'dashboard'
+
 export default function DashboardPage() {
-  const { user, household, setAIInsights, aiInsights } = useAppStore()
-  const [data, setData] = useState<DashboardData | null>(null)
+  const { user, household, setAIInsights, aiInsights, setDashboardData, dashboardData } = useAppStore()
   const [loading, setLoading] = useState(true)
+  const [hasFetched, setHasFetched] = useState(false)
+  const fetchingRef = useRef(false)
+  const { fetchWithCache, getCachedData, invalidateCache } = useFetchWithCache()
 
   const fetchDashboard = useCallback(async () => {
-    if (!household) return
-    
+    if (!household || fetchingRef.current) return
+    fetchingRef.current = true
+
+    const cacheKey = createCacheKey('/api/dashboard', { householdId: household.id })
+    const cachedData = getCachedData<DashboardData>(cacheKey)
+    const insightsCacheKey = createCacheKey('/api/ai/insights', { householdId: household.id })
+    const cachedInsights = getCachedData<{ insights: typeof aiInsights }>(insightsCacheKey)
+
+    if (cachedData) {
+      setDashboardData(cachedData)
+      if (cachedInsights?.insights) {
+        setAIInsights(cachedInsights.insights)
+      }
+      setLoading(false)
+      setHasFetched(true)
+      fetchingRef.current = false
+      return
+    }
+
     try {
       const [dashRes, insightsRes] = await Promise.all([
-        fetch(`/api/dashboard?householdId=${household.id}`, { credentials: 'include' }),
-        fetch(`/api/ai/insights?householdId=${household.id}`, { credentials: 'include' }),
+        fetchWithCache<DashboardData>(`/api/dashboard?householdId=${household.id}`, { staleTime: 300000 }),
+        fetchWithCache<{ insights: typeof aiInsights }>(`/api/ai/insights?householdId=${household.id}`, { staleTime: 300000 }),
       ])
       
-      const dashData = await dashRes.json()
-      const insightsData = await insightsRes.json()
-      
-      if (dashRes.ok) {
-        setData(dashData)
-      }
-      if (insightsRes.ok) setAIInsights(insightsData.insights || [])
+      setDashboardData(dashRes)
+      if (insightsRes?.insights) setAIInsights(insightsRes.insights)
     } catch (error) {
       console.error('Error fetching dashboard:', error)
     } finally {
       setLoading(false)
+      setHasFetched(true)
+      fetchingRef.current = false
     }
-  }, [household, setAIInsights])
+  }, [household, setAIInsights, setDashboardData, fetchWithCache, getCachedData])
 
   useEffect(() => {
-    fetchDashboard()
-  }, [fetchDashboard])
+    if (household && !hasFetched && !fetchingRef.current) {
+      fetchDashboard()
+    }
+  }, [household, hasFetched, fetchDashboard])
 
-  if (loading || !data) {
+  useEffect(() => {
+    const handleFocus = () => {
+      if (household && hasFetched) {
+        fetchDashboard()
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [household, hasFetched, fetchDashboard])
+
+  if (loading || !dashboardData) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
@@ -120,8 +151,8 @@ export default function DashboardPage() {
     )
   }
 
-  const changeClass = data.summary.monthOverMonthChange > 0 ? 'text-red-500' : 'text-green-500'
-  const changeSymbol = data.summary.monthOverMonthChange > 0 ? '↑' : '↓'
+  const changeClass = dashboardData.summary.monthOverMonthChange > 0 ? 'text-red-500' : 'text-green-500'
+  const changeSymbol = dashboardData.summary.monthOverMonthChange > 0 ? '↑' : '↓'
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -144,30 +175,30 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <SummaryCard 
             label="Este mes" 
-            value={`${data.summary.currentMonthTotal.toFixed(2)}€`}
-            subtext={`${changeSymbol} ${Math.abs(data.summary.monthOverMonthChange)}%`}
+            value={`${dashboardData.summary.currentMonthTotal.toFixed(2)}€`}
+            subtext={`${changeSymbol} ${Math.abs(dashboardData.summary.monthOverMonthChange)}%`}
             subtextClass={changeClass}
           />
           <SummaryCard 
             label="Pendiente" 
-            value={`${data.summary.pendingTotal.toFixed(2)}€`}
-            subtext={`${data.summary.pendingCount} facturas`}
+            value={`${dashboardData.summary.pendingTotal.toFixed(2)}€`}
+            subtext={`${dashboardData.summary.pendingCount} facturas`}
           />
           <SummaryCard 
             label="Vencidas" 
-            value={`${data.summary.overdueTotal.toFixed(2)}€`}
-            subtext={`${data.summary.overdueCount} facturas`}
+            value={`${dashboardData.summary.overdueTotal.toFixed(2)}€`}
+            subtext={`${dashboardData.summary.overdueCount} facturas`}
             subtextClass="text-red-600"
           />
           <SummaryCard 
             label="Media mensual" 
-            value={`${data.summary.averageMonthly.toFixed(2)}€`}
+            value={`${dashboardData.summary.averageMonthly.toFixed(2)}€`}
             subtext="6 meses"
           />
         </div>
 
         <Suspense fallback={<ChartSkeleton />}>
-          <DashboardCharts byCategory={data.byCategory} monthlyTrend={data.monthlyTrend} />
+          <DashboardCharts byCategory={dashboardData.byCategory} monthlyTrend={dashboardData.monthlyTrend} />
         </Suspense>
 
         <Card>

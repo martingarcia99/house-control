@@ -1,35 +1,16 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo, memo, useCallback } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
+import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache'
 import { Card, CardContent, CardHeader, Button, Input, Select, Modal, Icon, getCategoryIcon } from '@/components/ui'
 import { BillsSkeleton } from '@/components/ui/Skeleton'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import type { Bill, Category } from '@/types'
 
-interface Bill {
-  id: string
-  amount: number
-  description?: string | null
-  dueDate: string
-  categoryId: string
-  householdId: string
-  paidById: string
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED'
-  attachmentUrl?: string | null
-  notes?: string | null
-  createdAt: string
-  category: {
-    id: string
-    name: string
-    icon?: string | null
-    color?: string | null
-  }
-  paidBy: {
-    id: string
-    name: string
-  }
-}
+interface BillResponse extends Omit<Bill, 'updatedAt'> {}
+interface CategoriesResponse extends Omit<Category, 'isDefault' | 'householdId'> {}
 
 export default function BillsPage() {
   const { household, setBills, bills, categories, setCategories } = useAppStore()
@@ -44,6 +25,8 @@ export default function BillsPage() {
   const [scannedImage, setScannedImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fetchingRef = useRef(false)
+  const [hasFetched, setHasFetched] = useState(false)
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -52,29 +35,47 @@ export default function BillsPage() {
     status: 'PENDING',
   })
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!household) return
-      
-      try {
-        const res = await fetch(`/api/bills?householdId=${household.id}`, { credentials: 'include' })
-        const data = await res.json()
-        
-        if (res.ok) {
-          setBills(data.bills)
-          setCategories(data.categories)
-        }
-      } catch (error) {
-        console.error('Error fetching bills:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    
-    fetchData()
-  }, [household, setBills, setCategories])
+  const { fetchWithCache, getCachedData, invalidateCache } = useFetchWithCache()
 
-  async function handleSubmit(e: React.FormEvent) {
+  const fetchData = useCallback(async () => {
+    if (!household || fetchingRef.current) return
+    fetchingRef.current = true
+
+    const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+    const cached = getCachedData<{ bills: BillResponse[]; categories: CategoriesResponse[] }>(billsKey)
+
+    if (cached) {
+      setBills(cached.bills as Bill[])
+      setCategories(cached.categories as Category[])
+      setLoading(false)
+      setHasFetched(true)
+      fetchingRef.current = false
+      return
+    }
+
+    try {
+      const data = await fetchWithCache<{ bills: BillResponse[]; categories: CategoriesResponse[] }>(
+        `/api/bills?householdId=${household.id}`,
+        { staleTime: 300000 }
+      )
+      setBills(data.bills as Bill[])
+      setCategories(data.categories as Category[])
+    } catch (error) {
+      console.error('Error fetching bills:', error)
+    } finally {
+      setLoading(false)
+      setHasFetched(true)
+      fetchingRef.current = false
+    }
+  }, [household, setBills, setCategories, fetchWithCache, getCachedData])
+
+  useEffect(() => {
+    if (household && !hasFetched && !fetchingRef.current) {
+      fetchData()
+    }
+  }, [household, hasFetched, fetchData])
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!household) return
 
@@ -106,15 +107,17 @@ export default function BillsPage() {
         } else {
           setBills([data.bill, ...bills])
         }
+        const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+        invalidateCache(billsKey)
         setShowModal(false)
         resetForm()
       }
     } catch (error) {
       console.error('Error saving bill:', error)
     }
-  }
+  }, [household, formData, editingBill, scannedImage, bills, setBills, invalidateCache])
 
-  async function handleDelete(id: string) {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('¿Eliminar esta factura?')) return
     
     try {
@@ -125,13 +128,17 @@ export default function BillsPage() {
 
       if (res.ok) {
         setBills(bills.filter(b => b.id !== id))
+        if (household) {
+          const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+          invalidateCache(billsKey)
+        }
       }
     } catch (error) {
       console.error('Error deleting bill:', error)
     }
-  }
+  }, [bills, setBills, household, invalidateCache])
 
-  async function handleStatusChange(id: string, status: string) {
+  const handleStatusChange = useCallback(async (id: string, status: string) => {
     try {
       const res = await fetch(`/api/bills/${id}`, {
         method: 'PUT',
@@ -143,13 +150,17 @@ export default function BillsPage() {
       if (res.ok) {
         const data = await res.json()
         setBills(bills.map(b => b.id === id ? data.bill : b))
+        if (household) {
+          const billsKey = createCacheKey('/api/bills', { householdId: household.id })
+          invalidateCache(billsKey)
+        }
       }
     } catch (error) {
       console.error('Error updating bill:', error)
     }
-  }
+  }, [bills, setBills, household, invalidateCache])
 
-  function resetForm() {
+  const resetForm = useCallback(() => {
     setEditingBill(null)
     setFormData({
       amount: '',
@@ -159,9 +170,9 @@ export default function BillsPage() {
       status: 'PENDING',
     })
     setScannedImage(null)
-  }
+  }, [])
 
-  function openEditModal(bill: Bill) {
+  const openEditModal = useCallback((bill: Bill) => {
     setEditingBill(bill)
     setFormData({
       amount: bill.amount.toString(),
@@ -171,9 +182,9 @@ export default function BillsPage() {
       status: bill.status,
     })
     setShowModal(true)
-  }
+  }, [])
 
-  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
@@ -183,9 +194,9 @@ export default function BillsPage() {
       }
       reader.readAsDataURL(file)
     }
-  }
+  }, [])
 
-  async function scanBill() {
+  const scanBill = useCallback(async () => {
     if (!previewImage) return
 
     setScanning(true)
@@ -236,26 +247,40 @@ export default function BillsPage() {
     } finally {
       setScanning(false)
     }
-  }
+  }, [previewImage, categories])
 
-  function resetScan() {
+  const resetScan = useCallback(() => {
     setPreviewImage(null)
     setShowScanModal(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (cameraInputRef.current) cameraInputRef.current.value = ''
-  }
+  }, [])
 
-  function openDetailModal(bill: Bill) {
+  const openDetailModal = useCallback((bill: Bill) => {
     setDetailBill(bill)
     setShowDetailModal(true)
-  }
+  }, [])
 
-  const statusColors = {
+  const statusColors = useMemo(() => ({
     PENDING: 'bg-yellow-100 text-yellow-800',
     PAID: 'bg-green-100 text-green-800',
     OVERDUE: 'bg-red-100 text-red-800',
     CANCELLED: 'bg-gray-100 text-gray-800',
-  }
+  }), [])
+
+  const getStatusLabel = useCallback((status: string) => {
+    const labels: Record<string, string> = {
+      PENDING: 'Pendiente',
+      PAID: 'Pagada',
+      OVERDUE: 'Vencida',
+      CANCELLED: 'Cancelada',
+    }
+    return labels[status] || status
+  }, [])
+
+  const getCategoryIconMemo = useMemo(() => getCategoryIcon, [])
+
+  const getStatusColorsMemo = useMemo(() => statusColors, [statusColors])
 
   if (loading) {
     return (
@@ -324,8 +349,8 @@ export default function BillsPage() {
                         style={{ backgroundColor: `${bill.category.color}20` }}
                       >
                         <Icon 
-                          name={getCategoryIcon(bill.category.icon)} 
-                           style={{ color: bill.category.color ?? '#6b7280' }}
+                          name={getCategoryIconMemo(bill.category.icon)} 
+                          style={{ color: bill.category.color ?? '#6b7280' }}
                           size={20}
                         />
                       </div>
@@ -347,8 +372,8 @@ export default function BillsPage() {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <p className="font-semibold text-sm">{bill.amount.toFixed(2)}€</p>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusColors[bill.status]}`}>
-                        {bill.status === 'PENDING' ? 'Pendiente' : bill.status === 'PAID' ? 'Pagada' : bill.status === 'OVERDUE' ? 'Vencida' : 'Cancelada'}
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getStatusColorsMemo[bill.status]}`}>
+                        {getStatusLabel(bill.status)}
                       </span>
                     </div>
                   </div>
@@ -481,8 +506,8 @@ export default function BillsPage() {
                     style={{ backgroundColor: `${detailBill.category.color}20` }}
                   >
                     <Icon 
-                      name={getCategoryIcon(detailBill.category.icon)} 
-                       style={{ color: detailBill.category.color ?? '#6b7280' }}
+                      name={getCategoryIconMemo(detailBill.category.icon)} 
+                      style={{ color: detailBill.category.color ?? '#6b7280' }}
                       size={24}
                     />
                   </div>
@@ -499,8 +524,8 @@ export default function BillsPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Estado</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[detailBill.status]}`}>
-                      {detailBill.status === 'PENDING' ? 'Pendiente' : detailBill.status === 'PAID' ? 'Pagada' : detailBill.status === 'OVERDUE' ? 'Vencida' : 'Cancelada'}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColorsMemo[detailBill.status]}`}>
+                      {getStatusLabel(detailBill.status)}
                     </span>
                   </div>
                   <div>

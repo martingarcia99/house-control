@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useAppStore } from '@/lib/store'
+import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache'
 import { Card, CardContent, Button, Icon } from '@/components/ui'
 import { format } from 'date-fns'
 
@@ -13,32 +14,62 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const { household, chatMessages, setChatMessages, addChatMessage } = useAppStore()
+  const { household, setChatMessages, chatMessages, addChatMessage } = useAppStore()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [hasFetchedMessages, setHasFetchedMessages] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fetchingRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  const { fetchWithCache, getCachedData, cancelRequest } = useFetchWithCache()
+
+  const fetchMessages = useCallback(async () => {
+    if (!household || fetchingRef.current) return
+    fetchingRef.current = true
+    setLoadingMessages(true)
+
+    const cacheKey = createCacheKey('/api/ai/chat', {})
+    const cached = getCachedData<{ messages: Message[] }>(cacheKey)
+
+    if (cached?.messages) {
+      setChatMessages(cached.messages)
+      setLoadingMessages(false)
+      setHasFetchedMessages(true)
+      fetchingRef.current = false
+      return
+    }
+
+    try {
+      const data = await fetchWithCache<{ messages: Message[] }>('/api/ai/chat', { staleTime: 60000 })
+      setChatMessages(data?.messages || [])
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    } finally {
+      setLoadingMessages(false)
+      setHasFetchedMessages(true)
+      fetchingRef.current = false
+    }
+  }, [household, setChatMessages, fetchWithCache, getCachedData])
 
   useEffect(() => {
-    async function fetchMessages() {
-      if (!household) return
-      
-      try {
-        const res = await fetch('/api/ai/chat', { credentials: 'include' })
-        const data = await res.json()
-        if (res.ok) setChatMessages(data.messages || [])
-      } catch (error) {
-        console.error('Error fetching messages:', error)
+    if (household && !hasFetchedMessages && !fetchingRef.current) {
+      fetchMessages()
+    }
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
       }
     }
-    
-    fetchMessages()
-  }, [household, setChatMessages])
+  }, [household, hasFetchedMessages, fetchMessages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  async function handleSend(e: React.FormEvent) {
+  const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || !household || loading) return
 
@@ -54,10 +85,12 @@ export default function ChatPage() {
     setLoading(true)
 
     try {
+      abortControllerRef.current = new AbortController()
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({ message: input, householdId: household.id }),
       })
 
@@ -67,18 +100,45 @@ export default function ChatPage() {
         addChatMessage(data.assistantMessage)
       }
     } catch (error) {
-      console.error('Error sending message:', error)
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error sending message:', error)
+      }
     } finally {
       setLoading(false)
+      abortControllerRef.current = null
     }
-  }
+  }, [input, household, loading, addChatMessage])
 
-  const suggestions = [
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    setInput(suggestion)
+  }, [])
+
+  const suggestions = useMemo(() => [
     '¿En qué gasto más este mes?',
     '¿Cómo puedo ahorrar este mes?',
     '¿Qué facturas tengo pendientes?',
     'Dame consejos para reducir gastos',
-  ]
+  ], [])
+
+  const renderMessage = useCallback((msg: Message) => (
+    <div
+      key={msg.id}
+      className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}
+    >
+      <div
+        className={`max-w-[80%] px-3 py-2 rounded-lg ${
+          msg.role === 'USER'
+            ? 'bg-primary-600 text-white'
+            : 'bg-gray-100 text-gray-900'
+        }`}
+      >
+        <p className="text-sm">{msg.content}</p>
+        <p className={`text-[10px] mt-1 ${msg.role === 'USER' ? 'text-primary-200' : 'text-gray-500'}`}>
+          {format(new Date(msg.createdAt), 'HH:mm')}
+        </p>
+      </div>
+    </div>
+  ), [])
 
   return (
     <div className="h-[100dvh] bg-gray-50 flex flex-col overflow-hidden">
@@ -95,7 +155,12 @@ export default function ChatPage() {
       <main className="flex-1 max-w-4xl mx-auto w-full flex flex-col min-h-0 overflow-hidden pb-12">
         <Card className="flex-1 flex flex-col min-h-0 mx-2 md:mx-4 mb-0 overflow-hidden">
           <CardContent className="flex-1 overflow-y-auto p-3 space-y-3">
-            {chatMessages.length === 0 ? (
+            {loadingMessages ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mr-2"></div>
+                <span className="text-gray-500">Cargando mensajes...</span>
+              </div>
+            ) : chatMessages.length === 0 ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Icon name="message" size={32} className="text-primary-600" />
@@ -105,7 +170,7 @@ export default function ChatPage() {
                   {suggestions.map((suggestion, i) => (
                     <button
                       key={i}
-                      onClick={() => setInput(suggestion)}
+                      onClick={() => handleSuggestionClick(suggestion)}
                       className="px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700 hover:bg-gray-200 transition-colors"
                     >
                       {suggestion}
@@ -115,25 +180,7 @@ export default function ChatPage() {
               </div>
             ) : (
               <>
-                {chatMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[80%] px-3 py-2 rounded-lg ${
-                        msg.role === 'USER'
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}
-                    >
-                      <p className="text-sm">{msg.content}</p>
-                      <p className={`text-[10px] mt-1 ${msg.role === 'USER' ? 'text-primary-200' : 'text-gray-500'}`}>
-                        {format(new Date(msg.createdAt), 'HH:mm')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {chatMessages.map(renderMessage)}
                 <div ref={messagesEndRef} />
               </>
             )}
