@@ -90,10 +90,13 @@ model Bill {
   paidBy    User       @relation(fields: [paidById], references: [id])
   payments  Payment[]
 
+  @@index([householdId])
+  @@index([householdId, issueDate])
   @@index([householdId, dueDate])
   @@index([householdId, status])
   @@index([householdId, categoryId])
   @@index([paidById])
+  @@index([issueDate])
 }
 
 enum BillStatus {

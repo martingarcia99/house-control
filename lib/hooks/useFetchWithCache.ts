@@ -35,7 +35,7 @@ export function useFetchWithCache() {
     options: FetchOptions = {}
   ): Promise<T> => {
     const { 
-      staleTime = 5 * 60 * 1000,
+      staleTime = 15 * 60 * 1000,
       cacheKey = url,
       deduplicate = true
     } = options

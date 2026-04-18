@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     const endOfMonth = new Date(currentYear, currentMonth - 1 + 1, 0, 23, 59, 59)
     const startOfLastMonth = new Date(currentYear, currentMonth - 2, 1)
     const endOfLastMonth = new Date(currentYear, currentMonth - 1, 0, 23, 59, 59)
+    const twoYearsAgo = new Date(currentYear - 2, currentMonth - 1, 1)
 
     const [summaryStats, categoryData, monthlyTrend] = await Promise.all([
       prisma.$queryRaw<Array<{
@@ -75,6 +76,7 @@ export async function GET(request: Request) {
           SUM("amount") as total
         FROM "Bill"
         WHERE "householdId" = ${householdId}
+          AND "issueDate" >= ${twoYearsAgo}
         GROUP BY EXTRACT(YEAR FROM "issueDate"), EXTRACT(MONTH FROM "issueDate")
         ORDER BY year, month
       `,

@@ -14,6 +14,9 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const householdId = searchParams.get('householdId')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')))
+    const skip = (page - 1) * limit
 
     if (!householdId) {
       return NextResponse.json({ error: 'Hogar no especificado' }, { status: 400 })
@@ -31,7 +34,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No perteneces a este hogar' }, { status: 403 })
     }
 
-    const [bills, categories] = await Promise.all([
+    const [bills, totalCount, categories] = await Promise.all([
       prisma.bill.findMany({
         where: { householdId },
         select: {
@@ -50,7 +53,10 @@ export async function GET(request: Request) {
           paidBy: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip,
       }),
+      prisma.bill.count({ where: { householdId } }),
       prisma.category.findMany({
         where: {
           OR: [
@@ -65,7 +71,16 @@ export async function GET(request: Request) {
       }),
     ])
 
-    return NextResponse.json({ bills, categories })
+    return NextResponse.json({ 
+      bills, 
+      categories,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    })
   } catch (error) {
     console.error('Error al obtener facturas:', error)
     return NextResponse.json(
