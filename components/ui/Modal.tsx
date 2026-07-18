@@ -44,21 +44,21 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       <div className="fixed inset-0 z-50 overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-2">
           <div
-            className="fixed inset-0 bg-black/50 transition-opacity"
+            className="fixed inset-0 bg-gray-900/40 backdrop-blur-[2px] transition-opacity animate-[fadeIn_0.15s_ease-out]"
             onClick={onClose}
           />
           <div
             className={clsx(
-              'relative w-full bg-white rounded-2xl shadow-xl transform transition-all',
+              'relative w-full bg-white rounded-2xl shadow-xl shadow-gray-900/10 transform transition-all animate-[fadeIn_0.2s_ease-out]',
               sizes[size]
             )}
           >
             {title && (
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
                 <h3 className="text-base font-semibold text-gray-900">{title}</h3>
                 <button
                   onClick={onClose}
-                  className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>

@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import Image from 'next/image'
 import { useAppStore } from '@/lib/store'
 import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache'
-import { Card, CardContent, CardHeader, Button, Input, Select, Modal, Icon, getCategoryIcon } from '@/components/ui'
+import { toast } from '@/lib/toastStore'
+import { Card, CardContent, CardHeader, Button, Input, Select, Modal, Icon, IconBadge, getCategoryIcon } from '@/components/ui'
 import { BillsSkeleton } from '@/components/ui/Skeleton'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -12,9 +14,16 @@ import type { Bill, Category } from '@/types'
 interface BillResponse extends Omit<Bill, 'updatedAt'> {}
 interface CategoriesResponse extends Omit<Category, 'isDefault' | 'householdId'> {}
 
+interface BillsPageResponse {
+  bills: BillResponse[]
+  categories: CategoriesResponse[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
+}
+
 export default function BillsPage() {
   const { household, setBills, bills, categories, setCategories } = useAppStore()
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -37,45 +46,99 @@ export default function BillsPage() {
     categoryId: '',
   })
 
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [filterCategoryId, setFilterCategoryId] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [totalPages, setTotalPages] = useState(1)
+  const [currentPage, setCurrentPage] = useState(1)
+
   const { fetchWithCache, getCachedData, invalidateCache } = useFetchWithCache()
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  const buildBillsUrl = useCallback((householdId: string, page: number) => {
+    const params = new URLSearchParams({ householdId, page: String(page) })
+    if (search) params.set('search', search)
+    if (filterCategoryId) params.set('categoryId', filterCategoryId)
+    if (filterStatus) params.set('status', filterStatus)
+    return `/api/bills?${params.toString()}`
+  }, [search, filterCategoryId, filterStatus])
+
+  const fetchData = useCallback(async (page: number, append: boolean) => {
     if (!household || fetchingRef.current) return
     fetchingRef.current = true
+    if (append) setLoadingMore(true)
 
-    const billsKey = createCacheKey('/api/bills', { householdId: household.id })
-    const cached = getCachedData<{ bills: BillResponse[]; categories: CategoriesResponse[] }>(billsKey)
+    const isDefaultView = page === 1 && !append && !search && !filterCategoryId && !filterStatus
 
-    if (cached) {
-      setBills(cached.bills as Bill[])
-      setCategories(cached.categories as Category[])
-      setLoading(false)
-      setHasFetched(true)
-      fetchingRef.current = false
-      return
+    if (isDefaultView) {
+      const billsKey = createCacheKey('/api/bills', { householdId: household.id, page: '1' })
+      const cached = getCachedData<BillsPageResponse>(billsKey)
+      if (cached) {
+        setBills(cached.bills as Bill[])
+        setCategories(cached.categories as Category[])
+        setTotalPages(cached.pagination.totalPages)
+        setCurrentPage(1)
+        setLoading(false)
+        setHasFetched(true)
+        fetchingRef.current = false
+        return
+      }
     }
 
     try {
-      const data = await fetchWithCache<{ bills: BillResponse[]; categories: CategoriesResponse[] }>(
-        `/api/bills?householdId=${household.id}`,
-        { staleTime: 300000 }
-      )
-      setBills(data.bills as Bill[])
+      const url = buildBillsUrl(household.id, page)
+      const data = await fetchWithCache<BillsPageResponse>(url, { staleTime: 300000, cacheKey: url })
+      if (append) {
+        setBills([...bills, ...(data.bills as Bill[])], true)
+      } else {
+        setBills(data.bills as Bill[])
+      }
       setCategories(data.categories as Category[])
+      setTotalPages(data.pagination.totalPages)
+      setCurrentPage(data.pagination.page)
     } catch (error) {
       console.error('Error fetching bills:', error)
+      toast.error('No se pudieron cargar las facturas')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
       setHasFetched(true)
       fetchingRef.current = false
     }
-  }, [household, setBills, setCategories, fetchWithCache, getCachedData])
+  }, [household, bills, setBills, setCategories, fetchWithCache, getCachedData, buildBillsUrl, search, filterCategoryId, filterStatus])
 
   useEffect(() => {
     if (household && !hasFetched && !fetchingRef.current) {
-      fetchData()
+      fetchData(1, false)
     }
   }, [household, hasFetched, fetchData])
+
+  useEffect(() => {
+    if (household && hasFetched) {
+      setLoading(true)
+      fetchData(1, false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, filterCategoryId, filterStatus])
+
+  const handleLoadMore = useCallback(() => {
+    if (!household || loadingMore || currentPage >= totalPages) return
+    fetchData(currentPage + 1, true)
+  }, [household, loadingMore, currentPage, totalPages, fetchData])
+
+  const clearFilters = useCallback(() => {
+    setSearchInput('')
+    setSearch('')
+    setFilterCategoryId('')
+    setFilterStatus('')
+  }, [])
+
+  const hasActiveFilters = Boolean(search || filterCategoryId || filterStatus)
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,20 +180,10 @@ export default function BillsPage() {
         } else {
           setBills([data.bill, ...bills])
         }
-        const billsKey = createCacheKey('/api/bills', { householdId: household.id })
-        for (let m = 1; m <= 12; m++) {
-          const dashboardKey = createCacheKey('/api/dashboard', { householdId: household.id, month: m.toString(), year: new Date().getFullYear().toString() })
-          invalidateCache(dashboardKey)
-        }
-        for (let m = 1; m <= 12; m++) {
-          for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear(); y++) {
-            const membersKey = createCacheKey('/api/households/members', { householdId: household.id, month: m.toString(), year: y.toString() })
-            invalidateCache(membersKey)
-          }
-        }
-        invalidateCache(billsKey)
+        invalidateCache()
         setShowModal(false)
         resetForm()
+        toast.success(editingBill ? 'Factura actualizada' : 'Factura creada')
       } else {
         const data = await res.json()
         setFormError(data.error || 'Error al guardar')
@@ -152,24 +205,15 @@ const confirmDelete = useCallback(() => {
       }).then((res) => {
         if (res.ok) {
           setBills(bills.filter(b => b.id !== deletingBillId))
-          if (household) {
-            const billsKey = createCacheKey('/api/bills', { householdId: household.id })
-            for (let m = 1; m <= 12; m++) {
-              const dashboardKey = createCacheKey('/api/dashboard', { householdId: household.id, month: m.toString(), year: new Date().getFullYear().toString() })
-              invalidateCache(dashboardKey)
-            }
-            for (let m = 1; m <= 12; m++) {
-              for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear(); y++) {
-                const membersKey = createCacheKey('/api/households/members', { householdId: household.id, month: m.toString(), year: y.toString() })
-                invalidateCache(membersKey)
-              }
-            }
-            invalidateCache(billsKey)
-          }
+          invalidateCache()
+          toast.success('Factura eliminada')
+        } else {
+          toast.error('No se pudo eliminar la factura')
         }
       })
     } catch (error) {
       console.error('Error deleting bill:', error)
+      toast.error('No se pudo eliminar la factura')
     } finally {
       setDeletingBillId(null)
     }
@@ -192,25 +236,16 @@ const confirmDelete = useCallback(() => {
       if (res.ok) {
         const data = await res.json()
         setBills(bills.map(b => b.id === id ? data.bill : b))
-        if (household) {
-          const billsKey = createCacheKey('/api/bills', { householdId: household.id })
-          for (let m = 1; m <= 12; m++) {
-            const dashboardKey = createCacheKey('/api/dashboard', { householdId: household.id, month: m.toString(), year: new Date().getFullYear().toString() })
-            invalidateCache(dashboardKey)
-          }
-          for (let m = 1; m <= 12; m++) {
-            for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear(); y++) {
-              const membersKey = createCacheKey('/api/households/members', { householdId: household.id, month: m.toString(), year: y.toString() })
-              invalidateCache(membersKey)
-            }
-          }
-          invalidateCache(billsKey)
-        }
+        invalidateCache()
+        toast.success('Estado actualizado')
+      } else {
+        toast.error('No se pudo actualizar el estado')
       }
     } catch (error) {
       console.error('Error updating bill:', error)
+      toast.error('No se pudo actualizar el estado')
     }
-  }, [bills, setBills, household, invalidateCache])
+  }, [bills, setBills, invalidateCache])
 
   const resetForm = useCallback(() => {
     setEditingBill(null)
@@ -290,11 +325,11 @@ const confirmDelete = useCallback(() => {
         setShowModal(true)
         setScannedImage(previewImage)
       } else {
-        alert(data.error || 'Error al analizar la factura')
+        toast.error(data.error || 'Error al analizar la factura')
       }
     } catch (error) {
       console.error('Error scanning bill:', error)
-      alert('Error al procesar la imagen')
+      toast.error('Error al procesar la imagen')
     } finally {
       setScanning(false)
     }
@@ -338,10 +373,13 @@ const confirmDelete = useCallback(() => {
       <div className="min-h-screen bg-gray-50 pb-20">
         <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
           <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900">Facturas</h1>
+            <div className="flex items-center gap-2.5">
+              <IconBadge name="file" size="sm" />
+              <h1 className="text-lg font-bold text-gray-900">Facturas</h1>
+            </div>
             <div className="flex gap-2">
-              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse" />
-              <div className="w-16 h-8 bg-gray-200 rounded animate-pulse" />
+              <div className="w-8 h-8 bg-gray-200 rounded-xl animate-pulse" />
+              <div className="w-16 h-8 bg-gray-200 rounded-xl animate-pulse" />
             </div>
           </div>
         </header>
@@ -356,7 +394,10 @@ const confirmDelete = useCallback(() => {
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
         <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
-          <h1 className="text-xl font-bold text-gray-900">Facturas</h1>
+          <div className="flex items-center gap-2.5">
+            <IconBadge name="file" size="sm" />
+            <h1 className="text-lg font-bold text-gray-900">Facturas</h1>
+          </div>
           <div className="flex gap-2">
             <input
               type="file"
@@ -378,14 +419,66 @@ const confirmDelete = useCallback(() => {
       </header>
 
       <main className="max-w-4xl mx-auto px-2 md:px-4 py-4">
+        <div className="mb-3 space-y-2">
+          <div className="relative">
+            <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Buscar por descripción o notas..."
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={filterCategoryId}
+              onChange={(e) => setFilterCategoryId(e.target.value)}
+              className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Todas las categorías</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Todos los estados</option>
+              <option value="PENDING">Pendiente</option>
+              <option value="PAID">Pagada</option>
+              <option value="OVERDUE">Vencida</option>
+              <option value="CANCELLED">Cancelada</option>
+            </select>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="px-2.5 py-1.5 text-xs text-primary-600 hover:underline flex-shrink-0"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+
         {bills.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Icon name="file" size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">No hay facturas todavía</p>
-              <Button className="mt-4" onClick={() => setShowModal(true)}>
-                Añadir primera factura
-              </Button>
+              <p className="text-gray-500">
+                {hasActiveFilters ? 'No hay facturas que coincidan con el filtro' : 'No hay facturas todavía'}
+              </p>
+              {hasActiveFilters ? (
+                <Button variant="secondary" className="mt-4" onClick={clearFilters}>
+                  Limpiar filtros
+                </Button>
+              ) : (
+                <Button className="mt-4" onClick={() => setShowModal(true)}>
+                  Añadir primera factura
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -422,9 +515,18 @@ const confirmDelete = useCallback(() => {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <p className="font-semibold text-sm">{bill.amount.toFixed(2)}€</p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getStatusColorsMemo[bill.status] || getStatusColorsMemo.PENDING}`}>
+                        {getStatusLabel(bill.status)}
+                      </span>
                     </div>
                   </div>
                   <div className="flex justify-end gap-0.5 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                    {(bill.status === 'PENDING' || bill.status === 'OVERDUE') && (
+                      <Button variant="ghost" size="sm" className="p-1.5 h-7 text-green-600 hover:text-green-700" onClick={() => handleStatusChange(bill.id, 'PAID')}>
+                        <Icon name="check" size={14} />
+                        <span className="ml-1 text-xs">Marcar pagada</span>
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" className="p-1.5 h-7" onClick={() => openEditModal(bill)}>
                       <Icon name="edit" size={14} />
                       <span className="ml-1 text-xs">Editar</span>
@@ -436,6 +538,17 @@ const confirmDelete = useCallback(() => {
                 </CardContent>
               </Card>
             ))}
+
+            {currentPage < totalPages && (
+              <Button
+                variant="secondary"
+                className="w-full justify-center"
+                isLoading={loadingMore}
+                onClick={handleLoadMore}
+              >
+                Cargar más
+              </Button>
+            )}
           </div>
         )}
 
@@ -496,11 +609,12 @@ const confirmDelete = useCallback(() => {
         <Modal isOpen={showScanModal} onClose={resetScan} title="Escanear factura">
           <div className="space-y-2">
             {previewImage && (
-              <div className="relative">
-                <img 
-                  src={previewImage} 
-                  alt="Factura" 
-                  className="w-full max-h-64 object-contain rounded-lg bg-gray-100"
+              <div className="relative w-full h-64 rounded-lg bg-gray-100 overflow-hidden">
+                <Image
+                  src={previewImage}
+                  alt="Factura"
+                  fill
+                  className="object-contain"
                 />
               </div>
             )}
@@ -563,11 +677,14 @@ const confirmDelete = useCallback(() => {
                 {detailBill.attachmentUrl && (
                   <div>
                     <p className="text-xs text-gray-500 mb-2">Documento escaneado</p>
-                    <img 
-                      src={detailBill.attachmentUrl} 
-                      alt="Factura escaneada" 
-                      className="w-full rounded-lg border border-gray-200"
-                    />
+                    <div className="relative w-full h-80 rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+                      <Image
+                        src={detailBill.attachmentUrl}
+                        alt="Factura escaneada"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
                   </div>
                 )}
 

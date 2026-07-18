@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '@/lib/firebase/client'
 import { useAppStore } from '@/lib/store'
-import { Icon } from '@/components/ui'
+import { Icon, IconBadge } from '@/components/ui'
 
 export default function LoginPage() {
   const [error, setError] = useState('')
@@ -60,9 +60,7 @@ export default function LoginPage() {
       <div className="relative w-full max-w-sm animate-[fadeIn_0.4s_ease-out]">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-lg shadow-primary-500/30">
-            <Icon name="home" size={30} className="text-white" />
-          </div>
+          <IconBadge name="home" size="lg" className="mx-auto mb-4 shadow-lg" />
           <h1 className="text-3xl font-bold text-gray-900 mb-1">CasaControl</h1>
           <p className="text-gray-500 text-sm">Gestiona las facturas de tu hogar, sin líos</p>
         </div>

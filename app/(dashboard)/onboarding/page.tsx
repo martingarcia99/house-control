@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/lib/store'
-import { Button, Input, Card, CardContent } from '@/components/ui'
+import { Button, Input, Card, CardContent, IconBadge } from '@/components/ui'
 
 export default function OnboardingPage() {
   const [mode, setMode] = useState<'create' | 'join'>('create')
@@ -73,30 +73,35 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 p-4">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-primary-100" />
+      <div className="pointer-events-none absolute -top-32 -right-24 h-72 w-72 rounded-full bg-primary-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-primary-400/30 blur-3xl" />
+
+      <div className="relative w-full max-w-md animate-[fadeIn_0.4s_ease-out]">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary-600 mb-2">CasaControl</h1>
-          <p className="text-gray-600">Configura tu hogar</p>
+          <IconBadge name="home" size="lg" className="mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Configura tu hogar</h1>
+          <p className="text-gray-500 text-sm">Crea uno nuevo o únete con un código de invitación</p>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
           <button
             onClick={() => setMode('create')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
               mode === 'create'
-                ? 'bg-primary-600 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Crear hogar
           </button>
           <button
             onClick={() => setMode('join')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
               mode === 'join'
-                ? 'bg-primary-600 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Unirse a hogar

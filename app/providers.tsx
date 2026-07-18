@@ -42,7 +42,10 @@ export function Providers({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('Auth check failed:', error)
+      const status = error instanceof Error ? (error as Error & { status?: number }).status : undefined
+      if (status !== 401) {
+        console.error('Auth check failed:', error)
+      }
     } finally {
       setLoading(false)
       fetchingRef.current = false

@@ -17,6 +17,9 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')))
     const skip = (page - 1) * limit
+    const search = searchParams.get('search')?.trim()
+    const categoryId = searchParams.get('categoryId')
+    const status = searchParams.get('status')
 
     if (!householdId) {
       return NextResponse.json({ error: 'Hogar no especificado' }, { status: 400 })
@@ -34,9 +37,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No perteneces a este hogar' }, { status: 403 })
     }
 
+    const where: Record<string, unknown> = { householdId }
+    if (categoryId) where.categoryId = categoryId
+    if (status) where.status = status
+    if (search) {
+      where.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
     const [bills, totalCount, categories] = await Promise.all([
       prisma.bill.findMany({
-        where: { householdId },
+        where,
         select: {
           id: true,
           amount: true,
@@ -46,6 +59,7 @@ export async function GET(request: Request) {
           categoryId: true,
           householdId: true,
           paidById: true,
+          status: true,
           attachmentUrl: true,
           notes: true,
           createdAt: true,
@@ -56,7 +70,7 @@ export async function GET(request: Request) {
         take: limit,
         skip,
       }),
-      prisma.bill.count({ where: { householdId } }),
+      prisma.bill.count({ where }),
       prisma.category.findMany({
         where: {
           OR: [

@@ -47,47 +47,48 @@ export async function GET(request: Request) {
       },
     })
 
-    const totalMonthResult = await prisma.$queryRaw<Array<{ total: number }>>`
-      SELECT COALESCE(SUM(b."amount"), 0) as total
-      FROM "Bill" b
-      WHERE b."householdId" = ${householdId}
-        AND b."issueDate" >= ${startOfMonth}
-        AND b."issueDate" <= ${endOfMonth}
-        AND b."status" NOT IN ('CANCELLED')
-    `
+    const [totalMonthResult, paymentsByMember] = await Promise.all([
+      prisma.$queryRaw<Array<{ total: number }>>`
+        SELECT COALESCE(SUM(b."amount"), 0) as total
+        FROM "Bill" b
+        WHERE b."householdId" = ${householdId}
+          AND b."issueDate" >= ${startOfMonth}
+          AND b."issueDate" <= ${endOfMonth}
+          AND b."status" NOT IN ('CANCELLED')
+      `,
+      prisma.$queryRaw<Array<{ userId: string; total: number }>>`
+        SELECT p."userId" as "userId", COALESCE(SUM(p."amount"), 0) as total
+        FROM "Payment" p
+        JOIN "Bill" b ON p."billId" = b.id
+        WHERE b."householdId" = ${householdId}
+          AND b."issueDate" >= ${startOfMonth}
+          AND b."issueDate" <= ${endOfMonth}
+        GROUP BY p."userId"
+      `,
+    ])
     const totalMonth = Number(totalMonthResult[0]?.total || 0)
     const memberCount = members.length
     const perMemberShare = memberCount > 0 ? totalMonth / memberCount : 0
+    const roundedFairShare = Math.round(perMemberShare * 100) / 100
 
-    const memberStats = await Promise.all(
-      members.map(async (m) => {
-        const paymentsThisMonth = await prisma.$queryRaw<Array<{ total: number }>>`
-          SELECT COALESCE(SUM(p."amount"), 0) as total
-          FROM "Payment" p
-          JOIN "Bill" b ON p."billId" = b.id
-          WHERE b."householdId" = ${householdId}
-            AND p."userId" = ${m.userId}
-            AND b."issueDate" >= ${startOfMonth}
-            AND b."issueDate" <= ${endOfMonth}
-        `
+    const paidByUserId = new Map(paymentsByMember.map((row) => [row.userId, Number(row.total || 0)]))
 
-        const totalPaid = Math.round(Number(paymentsThisMonth[0]?.total || 0) * 100) / 100
-        const roundedFairShare = Math.round(perMemberShare * 100) / 100
-        const isPaid = totalPaid >= roundedFairShare && roundedFairShare > 0
+    const memberStats = members.map((m) => {
+      const totalPaid = Math.round((paidByUserId.get(m.userId) || 0) * 100) / 100
+      const isPaid = totalPaid >= roundedFairShare && roundedFairShare > 0
 
-        return {
-          userId: m.userId,
-          name: m.user.name,
-          avatarUrl: m.user.avatarUrl,
-          role: m.role,
-          joinedAt: m.joinedAt,
-          fairShare: roundedFairShare,
-          totalPaid: Math.round(totalPaid * 100) / 100,
-          pendingAmount: Math.round((roundedFairShare - totalPaid) * 100) / 100,
-          isPaid: totalPaid >= roundedFairShare && roundedFairShare > 0,
-        }
-      })
-    )
+      return {
+        userId: m.userId,
+        name: m.user.name,
+        avatarUrl: m.user.avatarUrl,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        fairShare: roundedFairShare,
+        totalPaid,
+        pendingAmount: Math.round((roundedFairShare - totalPaid) * 100) / 100,
+        isPaid,
+      }
+    })
 
     return NextResponse.json({
       members: memberStats,

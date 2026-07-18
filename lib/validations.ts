@@ -6,6 +6,7 @@ export const billSchema = z.object({
   issueDate: z.string().optional(),
   categoryId: z.string().min(1, 'La categoría es requerida'),
   householdId: z.string().min(1, 'El hogar es requerido'),
+  status: z.enum(['PENDING', 'PAID', 'OVERDUE', 'CANCELLED']).optional(),
   attachmentUrl: z.string().optional(),
   notes: z.string().optional(),
 })

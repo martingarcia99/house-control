@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase/client'
 import { useAppStore } from '@/lib/store'
-import { Card, CardContent, CardHeader, Button, Input, Modal } from '@/components/ui'
+import { toast } from '@/lib/toastStore'
+import { Card, CardContent, CardHeader, Button, Input, Modal, IconBadge } from '@/components/ui'
 import { Icon } from '@/components/ui'
 
 interface UserData {
@@ -35,12 +37,15 @@ export default function ProfilePage() {
       })
 
       if (res.ok) {
-        const data = await res.json()
         setUser({ ...user!, name })
         setShowEditName(false)
+        toast.success('Nombre actualizado')
+      } else {
+        toast.error('No se pudo actualizar el nombre')
       }
     } catch (error) {
       console.error('Error updating name:', error)
+      toast.error('No se pudo actualizar el nombre')
     } finally {
       setLoading(false)
     }
@@ -59,12 +64,15 @@ export default function ProfilePage() {
       })
 
       if (res.ok) {
-        const data = await res.json()
         setHousehold({ ...household!, name: householdName })
         setShowEditHousehold(false)
+        toast.success('Hogar actualizado')
+      } else {
+        toast.error('No se pudo actualizar el hogar')
       }
     } catch (error) {
       console.error('Error updating household:', error)
+      toast.error('No se pudo actualizar el hogar')
     } finally {
       setLoading(false)
     }
@@ -98,35 +106,35 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
-        <div className="max-w-lg mx-auto">
-          <h1 className="text-xl font-bold text-gray-900">Perfil</h1>
+        <div className="max-w-lg mx-auto flex items-center gap-2.5">
+          <IconBadge name="settings" size="sm" />
+          <h1 className="text-lg font-bold text-gray-900">Perfil</h1>
         </div>
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
         <Card>
-          <CardHeader className="pb-2">
-            <h2 className="font-semibold text-sm">Cuenta</h2>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div>
-                <p className="font-medium text-sm">Nombre</p>
-                <p className="text-xs text-gray-500">{user.name}</p>
+          <CardContent className="p-4 flex items-center gap-3">
+            {user.avatarUrl ? (
+              <Image src={user.avatarUrl} alt={user.name} width={56} height={56} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary-500/30">
+                <span className="text-white text-xl font-semibold">{user.name?.charAt(0)}</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowEditName(true)}>
-                <Icon name="edit" size={14} />
-              </Button>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-gray-900 truncate">{user.name}</p>
+              <p className="text-sm text-gray-500 truncate">{user.email}</p>
             </div>
-            <div className="py-2">
-              <p className="font-medium text-sm">Email</p>
-              <p className="text-xs text-gray-500">{user.email}</p>
-            </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowEditName(true)}>
+              <Icon name="edit" size={14} />
+            </Button>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <Icon name="home" size={16} className="text-primary-600" />
             <h2 className="font-semibold text-sm">Hogar</h2>
           </CardHeader>
           <CardContent className="space-y-3">

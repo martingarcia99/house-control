@@ -37,6 +37,7 @@ import {
   MoreVertical,
   Camera,
   Building,
+  Search,
 } from 'lucide-react'
 
 type IconName = 
@@ -77,6 +78,7 @@ type IconName =
   | 'paperclip'
   | 'shield'
   | 'building'
+  | 'search'
 
 interface IconProps {
   name: IconName
@@ -123,6 +125,7 @@ const icons: Record<IconName, React.ComponentType<any>> = {
   'paperclip': Paperclip,
   'shield': Shield,
   'building': Building,
+  'search': Search,
 }
 
 function Icon({ name, className = '', size = 20, style }: IconProps) {

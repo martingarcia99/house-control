@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from './providers'
+import { ToastContainer } from '@/components/ui'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -35,6 +36,7 @@ export default function RootLayout({
             {children}
           </div>
         </Providers>
+        <ToastContainer />
       </body>
     </html>
   )

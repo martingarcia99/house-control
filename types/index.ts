@@ -21,6 +21,8 @@ export interface Category {
   householdId?: string | null
 }
 
+export type BillStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED'
+
 export interface Bill {
   id: string
   amount: number
@@ -30,6 +32,7 @@ export interface Bill {
   categoryId: string
   householdId: string
   paidById: string
+  status: BillStatus
   attachmentUrl?: string | null
   notes?: string | null
   createdAt: string

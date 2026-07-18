@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState, lazy, Suspense, memo, useCallback, useRef } from 'react'
+import Image from 'next/image'
 import { useAppStore } from '@/lib/store'
 import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache'
-import { Card, CardContent, CardHeader, Icon, Button } from '@/components/ui'
+import { toast } from '@/lib/toastStore'
+import { Card, CardContent, CardHeader, Icon, Button, IconBadge } from '@/components/ui'
 import { DashboardSkeleton } from '@/components/ui/Skeleton'
 
 const DashboardCharts = lazy(() => 
@@ -58,21 +60,28 @@ interface MembersData {
   }
 }
 
-const SummaryCard = memo(function SummaryCard({ 
-  label, 
-  value, 
-  subtext, 
-  subtextClass = 'text-gray-500' 
-}: { 
+const SummaryCard = memo(function SummaryCard({
+  label,
+  value,
+  subtext,
+  subtextClass = 'text-gray-500',
+  icon,
+}: {
   label: string
   value: string
   subtext: string
   subtextClass?: string
+  icon: 'dollar' | 'bar-chart'
 }) {
   return (
     <Card>
-      <CardContent className="p-3">
-        <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+      <CardContent className="p-3.5">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="flex items-center justify-center h-6 w-6 rounded-lg bg-primary-50 text-primary-600 flex-shrink-0">
+            <Icon name={icon} size={13} />
+          </span>
+          <p className="text-xs text-gray-500 truncate">{label}</p>
+        </div>
         <p className="text-xl font-bold text-gray-900">{value}</p>
         <p className={`text-[10px] ${subtextClass}`}>{subtext}</p>
       </CardContent>
@@ -100,36 +109,35 @@ export default function DashboardPage() {
     setPayingMemberId(memberUserId)
 
     try {
-      console.log('1. Calling POST to pay for month', selectedMonth, selectedYear)
       const res = await fetch('/api/households/members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ 
-          householdId: household.id, 
-          month: selectedMonth, 
-          year: selectedYear 
+        body: JSON.stringify({
+          householdId: household.id,
+          month: selectedMonth,
+          year: selectedYear
         }),
       })
-      console.log('2. POST result:', res.status, res.ok)
 
-      if (!res.ok) return
-      
-      console.log('3. Calling GET to refresh data')
-      const freshRes = await fetch(`/api/households/members?householdId=${household.id}&month=${selectedMonth}&year=${selectedYear}`, { 
+      if (!res.ok) {
+        toast.error('No se pudo registrar el pago')
+        return
+      }
+
+      const freshRes = await fetch(`/api/households/members?householdId=${household.id}&month=${selectedMonth}&year=${selectedYear}`, {
         credentials: 'include',
         cache: 'no-store'
       })
-      console.log('4. GET status:', freshRes.status)
-      const text = await freshRes.text()
-      const data = JSON.parse(text)
-      console.log('5. GET data for current user:', data.members?.find((m: MemberStats) => m.userId === user?.id))
-        
+      const data = await freshRes.json()
+
       if (data.members) {
         setMembersData(data as MembersData)
       }
+      toast.success('Pago registrado')
     } catch (error) {
       console.error('Error paying month:', error)
+      toast.error('No se pudo registrar el pago')
     } finally {
       setPayingMemberId(null)
     }
@@ -160,30 +168,33 @@ export default function DashboardPage() {
       return
     }
 
-    try {
-      const dashRes = await fetchWithCache<DashboardData>(`/api/dashboard?householdId=${household.id}&month=${selectedMonth}&year=${selectedYear}`, { staleTime: 300000 })
-      setDashboardData(dashRes)
+    const [dashResult, insightsResult, membersResult] = await Promise.allSettled([
+      fetchWithCache<DashboardData>(`/api/dashboard?householdId=${household.id}&month=${selectedMonth}&year=${selectedYear}`, { staleTime: 300000 }),
+      fetchWithCache<{ insights: typeof aiInsights }>(`/api/ai/insights?householdId=${household.id}`, { staleTime: 300000 }),
+      fetchWithCache<MembersData>(`/api/households/members?householdId=${household.id}&month=${selectedMonth}&year=${selectedYear}`, { staleTime: 60000 }),
+    ])
 
-      try {
-        const insightsRes = await fetchWithCache<{ insights: typeof aiInsights }>(`/api/ai/insights?householdId=${household.id}`, { staleTime: 300000 })
-        if (insightsRes?.insights) setAIInsights(insightsRes.insights)
-      } catch (insightsError) {
-        console.error('Error fetching insights:', insightsError)
-      }
-
-      try {
-        const membersRes = await fetchWithCache<MembersData>(`/api/households/members?householdId=${household.id}&month=${selectedMonth}&year=${selectedYear}`, { staleTime: 60000 })
-        if (membersRes) setMembersData(membersRes)
-      } catch (membersError) {
-        console.error('Error fetching members:', membersError)
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard:', error)
-    } finally {
-      setLoading(false)
-      setHasFetched(true)
-      fetchingRef.current = false
+    if (dashResult.status === 'fulfilled') {
+      setDashboardData(dashResult.value)
+    } else {
+      console.error('Error fetching dashboard:', dashResult.reason)
     }
+
+    if (insightsResult.status === 'fulfilled' && insightsResult.value?.insights) {
+      setAIInsights(insightsResult.value.insights)
+    } else if (insightsResult.status === 'rejected') {
+      console.error('Error fetching insights:', insightsResult.reason)
+    }
+
+    if (membersResult.status === 'fulfilled' && membersResult.value) {
+      setMembersData(membersResult.value)
+    } else if (membersResult.status === 'rejected') {
+      console.error('Error fetching members:', membersResult.reason)
+    }
+
+    setLoading(false)
+    setHasFetched(true)
+    fetchingRef.current = false
   }, [household, selectedMonth, selectedYear, setAIInsights, setDashboardData, fetchWithCache, getCachedData])
 
   useEffect(() => {
@@ -214,15 +225,22 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-gray-50 pb-20">
         <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
           <div className="max-w-6xl mx-auto flex justify-between items-center gap-2">
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold text-gray-900 truncate">CasaControl</h1>
-              <p className="text-sm text-gray-500 truncate">{household?.name}</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <IconBadge name="home" size="sm" />
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold text-gray-900 truncate leading-tight">CasaControl</h1>
+                <p className="text-sm text-gray-500 truncate">{household?.name}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className="text-sm text-gray-600 hidden sm:block">{user?.name}</span>
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
-              </div>
+              {user?.avatarUrl ? (
+                <Image src={user.avatarUrl} alt={user.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                  <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -240,21 +258,28 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
         <div className="max-w-6xl mx-auto flex justify-between items-center gap-2">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-gray-900 truncate">CasaControl</h1>
-            <p className="text-sm text-gray-500 truncate">{household?.name}</p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <IconBadge name="home" size="sm" />
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-gray-900 truncate leading-tight">CasaControl</h1>
+              <p className="text-sm text-gray-500 truncate">{household?.name}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-sm text-gray-600 hidden sm:block">{user?.name}</span>
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-              <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
-            </div>
+            {user?.avatarUrl ? (
+              <Image src={user.avatarUrl} alt={user.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-2 md:px-4 py-3">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 bg-white rounded-2xl shadow-sm shadow-gray-200/60 border border-gray-100/80 px-2 py-1.5">
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
@@ -265,11 +290,11 @@ export default function DashboardPage() {
                   setSelectedMonth(selectedMonth - 1)
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <Icon name="chevron-left" size={20} />
             </button>
-            <span className="text-lg font-semibold min-w-[140px] text-center">
+            <span className="text-sm font-semibold min-w-[130px] text-center capitalize">
               {MONTHS[selectedMonth - 1]} {selectedYear}
             </span>
             <button
@@ -284,7 +309,7 @@ export default function DashboardPage() {
                   }
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <Icon name="chevron-right" size={20} />
             </button>
@@ -294,23 +319,25 @@ export default function DashboardPage() {
               setSelectedMonth(new Date().getMonth() + 1)
               setSelectedYear(new Date().getFullYear())
             }}
-            className="text-sm text-primary-600 hover:underline"
+            className="text-xs font-medium text-primary-600 hover:bg-primary-50 px-2.5 py-1.5 rounded-lg transition-colors"
           >
             Hoy
           </button>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3 mb-4">
-          <SummaryCard 
-            label="Este mes" 
+          <SummaryCard
+            label="Este mes"
             value={`${dashboardData.summary.currentMonthTotal.toFixed(2)}€`}
             subtext={`${changeSymbol} ${Math.abs(dashboardData.summary.monthOverMonthChange)}%`}
             subtextClass={changeClass}
+            icon="dollar"
           />
-          <SummaryCard 
-            label="Media mensual" 
+          <SummaryCard
+            label="Media mensual"
             value={`${dashboardData.summary.averageMonthly.toFixed(2)}€`}
-            subtext="historico"
+            subtext="histórico"
+            icon="bar-chart"
           />
         </div>
 
@@ -332,7 +359,7 @@ export default function DashboardPage() {
                   <div key={member.userId} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <div className="flex items-center gap-2">
                       {member.avatarUrl ? (
-                        <img src={member.avatarUrl} alt={member.name} className="w-8 h-8 rounded-full object-cover" />
+                        <Image src={member.avatarUrl} alt={member.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
                       ) : (
                         <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
                           <span className="text-primary-600 text-sm font-medium">{member.name.charAt(0)}</span>

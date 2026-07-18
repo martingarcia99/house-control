@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+    ],
   },
   allowedDevOrigins: ['192.168.1.130', '192.168.1.139'],
   experimental: {

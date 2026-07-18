@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useAppStore } from '@/lib/store'
 import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache'
-import { Card, CardContent, Button, Icon } from '@/components/ui'
+import { Card, CardContent, Button, Icon, IconBadge } from '@/components/ui'
 import { format } from 'date-fns'
 
 interface Message {
@@ -126,10 +126,10 @@ export default function ChatPage() {
       className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[80%] px-3 py-2 rounded-lg ${
+        className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl ${
           msg.role === 'USER'
-            ? 'bg-primary-600 text-white'
-            : 'bg-gray-100 text-gray-900'
+            ? 'bg-primary-600 text-white rounded-br-md shadow-sm shadow-primary-600/20'
+            : 'bg-gray-100 text-gray-900 rounded-bl-md'
         }`}
       >
         <p className="text-sm">{msg.content}</p>
@@ -143,10 +143,10 @@ export default function ChatPage() {
   return (
     <div className="h-[100dvh] bg-gray-50 flex flex-col overflow-hidden">
       <header className="bg-white border-b border-gray-200 px-4 pt-4 md:pt-safe pb-3 flex-shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <Icon name="sparkles" className="text-primary-600 flex-shrink-0" size={22} />
+        <div className="max-w-4xl mx-auto flex items-center gap-2.5">
+          <IconBadge name="sparkles" size="sm" />
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-gray-900 truncate">Asistente IA</h1>
+            <h1 className="text-lg font-bold text-gray-900 truncate leading-tight">Asistente IA</h1>
             <p className="text-sm text-gray-500 truncate">Pregunta sobre tus gastos</p>
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu pregunta..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+              className="flex-1 px-3.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 text-base bg-white"
               disabled={loading}
             />
             <Button type="submit" disabled={loading || !input.trim()}>

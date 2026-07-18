@@ -70,7 +70,9 @@ export function useFetchWithCache() {
       }
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
+        const httpError = new Error(`HTTP ${res.status}`) as Error & { status: number }
+        httpError.status = res.status
+        throw httpError
       }
       
       const data = await res.json()

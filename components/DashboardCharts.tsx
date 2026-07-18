@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useMemo } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import { Card, CardContent, CardHeader } from '@/components/ui'
 
 interface CategoryData {
@@ -21,14 +21,48 @@ interface DashboardChartsProps {
   monthlyTrend: TrendData[]
 }
 
-const COLORS = ['#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#ec4899', '#6366f1', '#14b8a6']
+// Validated categorical palette (dataviz skill, fixed order — CVD-safe, light mode).
+// Only used as a fallback when a category has no color of its own; real categories
+// keep their assigned color so the same category reads identically everywhere in the app.
+const FALLBACK_COLORS = ['#2a78d6', '#008300', '#e87ba4', '#eda100', '#1baf7a', '#eb6834', '#4a3aa7', '#e34948']
+
+const CHART_MUTED = '#898781'
+const CHART_GRID = '#e1e0d9'
+
+const tooltipStyle = {
+  borderRadius: 12,
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 4px 16px rgba(17, 24, 39, 0.08)',
+  fontSize: 12,
+  padding: '8px 12px',
+}
+
+interface LegendEntry {
+  value?: React.ReactNode
+  color?: string
+}
+
+function renderLegend(props: { payload?: LegendEntry[] }) {
+  const { payload } = props
+  if (!payload?.length) return null
+  return (
+    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 mt-2 px-2">
+      {payload.map((entry, i) => (
+        <span key={i} className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
+          {entry.value}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 export const DashboardCharts = memo(function DashboardCharts({ byCategory, monthlyTrend }: DashboardChartsProps) {
   const chartData = useMemo(() => ({
-    byCategory: byCategory.map(c => ({
+    byCategory: byCategory.map((c, i) => ({
       name: c.name,
       value: c.amount,
-      color: c.color || COLORS[byCategory.indexOf(c) % COLORS.length],
+      color: c.color || FALLBACK_COLORS[i % FALLBACK_COLORS.length],
     })),
   }), [byCategory])
 
@@ -42,7 +76,7 @@ export const DashboardCharts = memo(function DashboardCharts({ byCategory, month
         </CardHeader>
         <CardContent className="p-2">
           {chartData.byCategory.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
                   data={chartData.byCategory}
@@ -50,16 +84,20 @@ export const DashboardCharts = memo(function DashboardCharts({ byCategory, month
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={60}
-                  innerRadius={30}
-                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                  outerRadius={64}
+                  innerRadius={36}
+                  paddingAngle={2}
+                  label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
                   labelLine={false}
+                  stroke="#fff"
+                  strokeWidth={2}
                 >
                   {chartData.byCategory.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} />
+                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} contentStyle={tooltipStyle} />
+                <Legend content={renderLegend} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -74,12 +112,13 @@ export const DashboardCharts = memo(function DashboardCharts({ byCategory, month
         </CardHeader>
         <CardContent className="p-2">
           {trendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={trendData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} width={40} />
-                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} />
-                <Bar dataKey="amount" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                <CartesianGrid vertical={false} stroke={CHART_GRID} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_MUTED }} axisLine={{ stroke: CHART_GRID }} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: CHART_MUTED }} width={40} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} contentStyle={tooltipStyle} cursor={{ fill: 'rgba(37, 106, 191, 0.06)' }} />
+                <Bar dataKey="amount" name="Gasto" fill="#2a78d6" radius={[4, 4, 0, 0]} maxBarSize={24} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
