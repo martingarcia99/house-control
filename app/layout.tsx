@@ -29,8 +29,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
-      <body className={`${inter.className} pb-16 md:pb-0`}>
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${inter.className} pb-16 md:pb-0 dark:bg-gray-950 dark:text-gray-100`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
+          }}
+        />
         <Providers>
           <div className="min-h-screen pb-16">
             {children}

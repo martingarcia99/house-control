@@ -129,11 +129,11 @@ export default function ChatPage() {
         className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl ${
           msg.role === 'USER'
             ? 'bg-primary-600 text-white rounded-br-md shadow-sm shadow-primary-600/20'
-            : 'bg-gray-100 text-gray-900 rounded-bl-md'
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-md'
         }`}
       >
         <p className="text-sm">{msg.content}</p>
-        <p className={`text-[10px] mt-1 ${msg.role === 'USER' ? 'text-primary-200' : 'text-gray-500'}`}>
+        <p className={`text-[10px] mt-1 ${msg.role === 'USER' ? 'text-primary-200' : 'text-gray-500 dark:text-gray-400'}`}>
           {format(new Date(msg.createdAt), 'HH:mm')}
         </p>
       </div>
@@ -141,13 +141,13 @@ export default function ChatPage() {
   ), [])
 
   return (
-    <div className="h-[100dvh] bg-gray-50 flex flex-col overflow-hidden">
-      <header className="bg-white border-b border-gray-200 px-4 pt-4 md:pt-safe pb-3 flex-shrink-0">
+    <div className="h-[100dvh] bg-gray-50 dark:bg-gray-950 flex flex-col overflow-hidden">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 pt-4 md:pt-safe pb-3 flex-shrink-0">
         <div className="max-w-4xl mx-auto flex items-center gap-2.5">
           <IconBadge name="sparkles" size="sm" />
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-gray-900 truncate leading-tight">Asistente IA</h1>
-            <p className="text-sm text-gray-500 truncate">Pregunta sobre tus gastos</p>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate leading-tight">Asistente IA</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">Pregunta sobre tus gastos</p>
           </div>
         </div>
       </header>
@@ -158,20 +158,20 @@ export default function ChatPage() {
             {loadingMessages ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mr-2"></div>
-                <span className="text-gray-500">Cargando mensajes...</span>
+                <span className="text-gray-500 dark:text-gray-400">Cargando mensajes...</span>
               </div>
             ) : chatMessages.length === 0 ? (
               <div className="text-center py-8">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Icon name="message" size={32} className="text-primary-600" />
                 </div>
-                <p className="text-gray-600 mb-4">¡Hola! Soy tu asistente financiero. ¿En qué puedo ayudarte?</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">¡Hola! Soy tu asistente financiero. ¿En qué puedo ayudarte?</p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {suggestions.map((suggestion, i) => (
                     <button
                       key={i}
                       onClick={() => handleSuggestionClick(suggestion)}
-                      className="px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
                       {suggestion}
                     </button>
@@ -187,14 +187,14 @@ export default function ChatPage() {
           </CardContent>
         </Card>
 
-        <form onSubmit={handleSend} className="p-2 bg-white border-t border-gray-200">
+        <form onSubmit={handleSend} className="p-2 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
           <div className="flex gap-2 max-w-4xl mx-auto">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu pregunta..."
-              className="flex-1 px-3.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 text-base bg-white"
+              className="flex-1 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 text-base bg-white dark:bg-gray-900"
               disabled={loading}
             />
             <Button type="submit" disabled={loading || !input.trim()}>

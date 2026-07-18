@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase/client'
 import { useAppStore } from '@/lib/store'
+import { useTheme } from '@/lib/hooks/useTheme'
 import { toast } from '@/lib/toastStore'
 import { Card, CardContent, CardHeader, Button, Input, Modal, IconBadge } from '@/components/ui'
 import { Icon } from '@/components/ui'
@@ -17,6 +18,7 @@ interface UserData {
 
 export default function ProfilePage() {
   const { user, household, setUser, setHousehold } = useAppStore()
+  const { isDark, toggleTheme } = useTheme()
   const router = useRouter()
   const [showEditName, setShowEditName] = useState(false)
   const [showEditHousehold, setShowEditHousehold] = useState(false)
@@ -104,11 +106,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 pt-4 pb-3">
         <div className="max-w-lg mx-auto flex items-center gap-2.5">
           <IconBadge name="settings" size="sm" />
-          <h1 className="text-lg font-bold text-gray-900">Perfil</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Perfil</h1>
         </div>
       </header>
 
@@ -123,8 +125,8 @@ export default function ProfilePage() {
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-gray-900 truncate">{user.name}</p>
-              <p className="text-sm text-gray-500 truncate">{user.email}</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">{user.name}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setShowEditName(true)}>
               <Icon name="edit" size={14} />
@@ -141,7 +143,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between py-2">
               <div>
                 <p className="font-medium text-sm">Nombre del hogar</p>
-                <p className="text-xs text-gray-500">{household?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{household?.name}</p>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowEditHousehold(true)}>
                 <Icon name="edit" size={14} />
@@ -149,15 +151,47 @@ export default function ProfilePage() {
             </div>
             <div className="py-2">
               <p className="font-medium text-sm">Tu rol</p>
-              <p className="text-xs text-gray-500 capitalize">{household?.role?.toLowerCase()}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{household?.role?.toLowerCase()}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <Icon name="settings" size={16} className="text-primary-600" />
+            <h2 className="font-semibold text-sm">Preferencias</h2>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-2.5">
+                <Icon name={isDark ? 'moon' : 'sun'} size={18} className="text-gray-500 dark:text-gray-400 dark:text-gray-400" />
+                <div>
+                  <p className="font-medium text-sm">Modo oscuro</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-400">{isDark ? 'Activado' : 'Desactivado'}</p>
+                </div>
+              </div>
+              <button
+                onClick={toggleTheme}
+                role="switch"
+                aria-checked={isDark}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  isDark ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white dark:bg-gray-900 shadow transition-transform ${
+                    isDark ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="py-4">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               className="w-full justify-center"
               onClick={handleLogout}
             >

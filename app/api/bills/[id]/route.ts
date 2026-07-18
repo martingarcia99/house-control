@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { billSchema } from '@/lib/validations'
+import { resolveAttachmentUrl, uploadAttachment } from '@/lib/storage'
 
 export async function GET(
   request: Request,
@@ -46,7 +47,7 @@ export async function GET(
       return NextResponse.json({ error: 'No tienes acceso a esta factura' }, { status: 403 })
     }
 
-    return NextResponse.json({ bill })
+    return NextResponse.json({ bill: { ...bill, attachmentUrl: await resolveAttachmentUrl(bill.attachmentUrl) } })
   } catch (error) {
     console.error('Error al obtener factura:', error)
     return NextResponse.json(
@@ -93,6 +94,12 @@ export async function PUT(
     if (validatedData.issueDate) {
       updateData.issueDate = new Date(validatedData.issueDate)
     }
+    if ('dueDate' in validatedData) {
+      updateData.dueDate = validatedData.dueDate ? new Date(`${validatedData.dueDate}T23:59:59`) : null
+    }
+    if (validatedData.attachmentUrl) {
+      updateData.attachmentUrl = await uploadAttachment(validatedData.attachmentUrl, bill.householdId)
+    }
 
     const updatedBill = await prisma.bill.update({
       where: { id },
@@ -105,7 +112,9 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json({ bill: updatedBill })
+    return NextResponse.json({
+      bill: { ...updatedBill, attachmentUrl: await resolveAttachmentUrl(updatedBill.attachmentUrl) },
+    })
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'name' in error && error.name === 'ZodError') {
       return NextResponse.json(

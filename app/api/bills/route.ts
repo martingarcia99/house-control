@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { billSchema } from '@/lib/validations'
+import { runRecurringSweep } from '@/lib/recurring'
+import { uploadAttachment, resolveAttachmentUrl, resolveAttachmentUrls } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +37,12 @@ export async function GET(request: Request) {
 
     if (!member) {
       return NextResponse.json({ error: 'No perteneces a este hogar' }, { status: 403 })
+    }
+
+    try {
+      await runRecurringSweep(householdId)
+    } catch (sweepError) {
+      console.error('Error en sweep de recurrentes:', sweepError)
     }
 
     const where: Record<string, unknown> = { householdId }
@@ -85,8 +93,10 @@ export async function GET(request: Request) {
       }),
     ])
 
-    return NextResponse.json({ 
-      bills, 
+    const billsWithUrls = await resolveAttachmentUrls(bills)
+
+    return NextResponse.json({
+      bills: billsWithUrls,
       categories,
       pagination: {
         page,
@@ -125,15 +135,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No perteneces a este hogar' }, { status: 403 })
     }
 
+    const attachmentUrl = validatedData.attachmentUrl
+      ? await uploadAttachment(validatedData.attachmentUrl, validatedData.householdId)
+      : undefined
+
     const bill = await prisma.bill.create({
       data: {
         amount: validatedData.amount,
         description: validatedData.description,
         issueDate: validatedData.issueDate ? new Date(validatedData.issueDate) : new Date(),
+        dueDate: validatedData.dueDate ? new Date(`${validatedData.dueDate}T23:59:59`) : null,
         categoryId: validatedData.categoryId,
         householdId: validatedData.householdId,
         paidById: user.id,
-        attachmentUrl: validatedData.attachmentUrl,
+        attachmentUrl,
         notes: validatedData.notes,
       },
       include: {
@@ -144,7 +159,7 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ bill })
+    return NextResponse.json({ bill: { ...bill, attachmentUrl: await resolveAttachmentUrl(bill.attachmentUrl) } })
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'name' in error && error.name === 'ZodError') {
       return NextResponse.json(

@@ -2,7 +2,7 @@ import { memo } from 'react'
 
 function Skeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+    <div className={`animate-pulse bg-gray-200 dark:bg-gray-800 rounded ${className}`} />
   )
 }
 
@@ -11,7 +11,7 @@ export const DashboardSkeleton = memo(function DashboardSkeleton() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
         {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl p-3 border border-gray-100/80 shadow-sm shadow-gray-200/60">
+          <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-3 border border-gray-100/80 dark:border-gray-800 shadow-sm shadow-gray-200/60 dark:shadow-none">
             <Skeleton className="h-3 w-16 mb-2" />
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-2 w-12 mt-1" />
@@ -20,21 +20,21 @@ export const DashboardSkeleton = memo(function DashboardSkeleton() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-gray-100/80 shadow-sm shadow-gray-200/60">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100/80 dark:border-gray-800 shadow-sm shadow-gray-200/60 dark:shadow-none">
           <Skeleton className="h-4 w-32 mb-4" />
           <Skeleton className="h-[200px] w-full" />
         </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-100/80 shadow-sm shadow-gray-200/60">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100/80 dark:border-gray-800 shadow-sm shadow-gray-200/60 dark:shadow-none">
           <Skeleton className="h-4 w-32 mb-4" />
           <Skeleton className="h-[200px] w-full" />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 border border-gray-100/80 shadow-sm shadow-gray-200/60">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100/80 dark:border-gray-800 shadow-sm shadow-gray-200/60 dark:shadow-none">
         <Skeleton className="h-4 w-32 mb-4" />
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="p-3 bg-gray-50 rounded-lg">
+            <div key={i} className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-lg">
               <Skeleton className="h-4 w-48 mb-2" />
               <Skeleton className="h-3 w-full" />
             </div>
@@ -49,7 +49,7 @@ export const BillsSkeleton = memo(function BillsSkeleton() {
   return (
     <div className="space-y-2">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="bg-white rounded-2xl p-3 border border-gray-100/80 shadow-sm shadow-gray-200/60">
+        <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-3 border border-gray-100/80 dark:border-gray-800 shadow-sm shadow-gray-200/60 dark:shadow-none">
           <div className="flex items-start gap-3">
             <Skeleton className="w-10 h-10 rounded-lg" />
             <div className="flex-1">

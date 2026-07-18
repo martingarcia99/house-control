@@ -38,6 +38,9 @@ import {
   Camera,
   Building,
   Search,
+  Repeat,
+  Moon,
+  Sun,
 } from 'lucide-react'
 
 type IconName = 
@@ -79,6 +82,9 @@ type IconName =
   | 'shield'
   | 'building'
   | 'search'
+  | 'repeat'
+  | 'moon'
+  | 'sun'
 
 interface IconProps {
   name: IconName
@@ -126,6 +132,9 @@ const icons: Record<IconName, React.ComponentType<any>> = {
   'shield': Shield,
   'building': Building,
   'search': Search,
+  'repeat': Repeat,
+  'moon': Moon,
+  'sun': Sun,
 }
 
 function Icon({ name, className = '', size = 20, style }: IconProps) {

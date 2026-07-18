@@ -7,6 +7,7 @@ import { useFetchWithCache, createCacheKey } from '@/lib/hooks/useFetchWithCache
 import { toast } from '@/lib/toastStore'
 import { Card, CardContent, CardHeader, Button, Input, Select, Modal, Icon, IconBadge, getCategoryIcon } from '@/components/ui'
 import { BillsSkeleton } from '@/components/ui/Skeleton'
+import { RecurringBillsModal } from '@/components/RecurringBillsModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Bill, Category } from '@/types'
@@ -25,6 +26,7 @@ export default function BillsPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [showRecurringModal, setShowRecurringModal] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -43,6 +45,7 @@ export default function BillsPage() {
     amount: '',
     description: '',
     issueDate: new Date().toISOString().split('T')[0],
+    dueDate: '',
     categoryId: '',
   })
 
@@ -140,6 +143,16 @@ export default function BillsPage() {
 
   const hasActiveFilters = Boolean(search || filterCategoryId || filterStatus)
 
+  const reminders = useMemo(() => {
+    const now = new Date()
+    const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const overdue = bills.filter((b) => b.status === 'OVERDUE')
+    const upcoming = bills.filter(
+      (b) => b.status === 'PENDING' && b.dueDate && new Date(b.dueDate) >= now && new Date(b.dueDate) <= in7days
+    )
+    return { overdue, upcoming }
+  }, [bills])
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!household) return
@@ -156,6 +169,7 @@ export default function BillsPage() {
       amount: parseFloat(formData.amount),
       description: formData.description || undefined,
       issueDate: formData.issueDate || undefined,
+      dueDate: formData.dueDate || null,
       categoryId: formData.categoryId,
       householdId: household.id,
     }
@@ -253,6 +267,7 @@ const confirmDelete = useCallback(() => {
       amount: '',
       description: '',
       issueDate: new Date().toISOString().split('T')[0],
+      dueDate: '',
       categoryId: '',
     })
     setScannedImage(null)
@@ -266,6 +281,7 @@ const confirmDelete = useCallback(() => {
       amount: bill.amount.toString(),
       description: bill.description || '',
       issueDate: issueDateStr,
+      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().split('T')[0] : '',
       categoryId: bill.categoryId,
     })
     setShowModal(true)
@@ -351,7 +367,7 @@ const confirmDelete = useCallback(() => {
     PENDING: 'bg-yellow-100 text-yellow-800',
     PAID: 'bg-green-100 text-green-800',
     OVERDUE: 'bg-red-100 text-red-800',
-    CANCELLED: 'bg-gray-100 text-gray-800',
+    CANCELLED: 'bg-gray-100 dark:bg-gray-800 text-gray-800',
   }), [])
 
   const getStatusLabel = useCallback((status: string) => {
@@ -370,12 +386,12 @@ const confirmDelete = useCallback(() => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 pt-4 pb-3">
           <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
             <div className="flex items-center gap-2.5">
               <IconBadge name="file" size="sm" />
-              <h1 className="text-lg font-bold text-gray-900">Facturas</h1>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Facturas</h1>
             </div>
             <div className="flex gap-2">
               <div className="w-8 h-8 bg-gray-200 rounded-xl animate-pulse" />
@@ -391,12 +407,12 @@ const confirmDelete = useCallback(() => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 pt-4 pb-3">
         <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
           <div className="flex items-center gap-2.5">
             <IconBadge name="file" size="sm" />
-            <h1 className="text-lg font-bold text-gray-900">Facturas</h1>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Facturas</h1>
           </div>
           <div className="flex gap-2">
             <input
@@ -407,6 +423,9 @@ const confirmDelete = useCallback(() => {
               onChange={handleImageSelect}
               className="hidden"
             />
+            <Button variant="secondary" size="sm" onClick={() => setShowRecurringModal(true)} title="Facturas recurrentes">
+              <Icon name="repeat" size={16} />
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
               <Icon name="camera" size={16} />
             </Button>
@@ -419,6 +438,38 @@ const confirmDelete = useCallback(() => {
       </header>
 
       <main className="max-w-4xl mx-auto px-2 md:px-4 py-4">
+        {(reminders.overdue.length > 0 || reminders.upcoming.length > 0) && (
+          <div className="mb-3 space-y-2">
+            {reminders.overdue.length > 0 && (
+              <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/40 text-sm">
+                <Icon name="alert" size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="text-red-700 dark:text-red-400">
+                  <span className="font-semibold">
+                    {reminders.overdue.length === 1
+                      ? '1 factura vencida'
+                      : `${reminders.overdue.length} facturas vencidas`}
+                  </span>
+                  {' — '}
+                  {reminders.overdue.slice(0, 2).map((b) => b.description || b.category.name).join(', ')}
+                  {reminders.overdue.length > 2 ? '…' : ''}
+                </div>
+              </div>
+            )}
+            {reminders.upcoming.length > 0 && (
+              <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 text-sm">
+                <Icon name="bell" size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="text-amber-700 dark:text-amber-400">
+                  <span className="font-semibold">Próximos vencimientos:</span>{' '}
+                  {reminders.upcoming.slice(0, 3).map((b) =>
+                    `${b.description || b.category.name} (${format(new Date(b.dueDate!), 'd MMM', { locale: es })})`
+                  ).join(', ')}
+                  {reminders.upcoming.length > 3 ? '…' : ''}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mb-3 space-y-2">
           <div className="relative">
             <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -427,14 +478,14 @@ const confirmDelete = useCallback(() => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Buscar por descripción o notas..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-900"
             />
           </div>
           <div className="flex gap-2">
             <select
               value={filterCategoryId}
               onChange={(e) => setFilterCategoryId(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="flex-1 px-2.5 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Todas las categorías</option>
               {categories.map((c) => (
@@ -444,7 +495,7 @@ const confirmDelete = useCallback(() => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="flex-1 px-2.5 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Todos los estados</option>
               <option value="PENDING">Pendiente</option>
@@ -467,7 +518,7 @@ const confirmDelete = useCallback(() => {
           <Card>
             <CardContent className="py-12 text-center">
               <Icon name="file" size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">
+              <p className="text-gray-500 dark:text-gray-400">
                 {hasActiveFilters ? 'No hay facturas que coincidan con el filtro' : 'No hay facturas todavía'}
               </p>
               {hasActiveFilters ? (
@@ -506,7 +557,7 @@ const confirmDelete = useCallback(() => {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500">{bill.category.name}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{bill.category.name}</span>
                           <span className="text-xs text-gray-400">
                             {bill.issueDate ? format(new Date(bill.issueDate), 'd MMM yyyy', { locale: es }) : ''}
                           </span>
@@ -520,7 +571,7 @@ const confirmDelete = useCallback(() => {
                       </span>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-0.5 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end gap-0.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
                     {(bill.status === 'PENDING' || bill.status === 'OVERDUE') && (
                       <Button variant="ghost" size="sm" className="p-1.5 h-7 text-green-600 hover:text-green-700" onClick={() => handleStatusChange(bill.id, 'PAID')}>
                         <Icon name="check" size={14} />
@@ -555,13 +606,13 @@ const confirmDelete = useCallback(() => {
         <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm() }} title={editingBill ? 'Editar factura' : 'Nueva factura'}>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Importe</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Importe</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                 placeholder="0.00"
                 required
               />
@@ -573,16 +624,27 @@ const confirmDelete = useCallback(() => {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ej: Factura de luz febrero"
             />
-            <div className="w-full">
-              <label htmlFor="issueDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
-              <input
-                id="issueDate"
-                type="date"
-                value={formData.issueDate}
-                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                style={{ maxWidth: '150px' }}
-              />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label htmlFor="issueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de emisión</label>
+                <input
+                  id="issueDate"
+                  type="date"
+                  value={formData.issueDate}
+                  onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/40 text-sm bg-white dark:bg-gray-900"
+                />
+              </div>
+              <div className="flex-1">
+                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vencimiento</label>
+                <input
+                  id="dueDate"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/40 text-sm bg-white dark:bg-gray-900"
+                />
+              </div>
             </div>
             <Select
               id="category"
@@ -606,10 +668,19 @@ const confirmDelete = useCallback(() => {
           </form>
         </Modal>
 
+        {household && (
+          <RecurringBillsModal
+            isOpen={showRecurringModal}
+            onClose={() => setShowRecurringModal(false)}
+            householdId={household.id}
+            categories={categories}
+          />
+        )}
+
         <Modal isOpen={showScanModal} onClose={resetScan} title="Escanear factura">
           <div className="space-y-2">
             {previewImage && (
-              <div className="relative w-full h-64 rounded-lg bg-gray-100 overflow-hidden">
+              <div className="relative w-full h-64 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
                 <Image
                   src={previewImage}
                   alt="Factura"
@@ -657,17 +728,17 @@ const confirmDelete = useCallback(() => {
                   </div>
                   <div>
                     <p className="font-semibold">{detailBill.description || detailBill.category.name}</p>
-                    <p className="text-sm text-gray-500">{detailBill.category.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{detailBill.category.name}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-gray-500">Importe</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Importe</p>
                     <p className="font-semibold text-lg">{detailBill.amount.toFixed(2)}€</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Fecha de emisión</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Fecha de emisión</p>
                     <p className="font-medium">
                       {detailBill.issueDate ? format(new Date(detailBill.issueDate), 'd MMMM yyyy', { locale: es }) : '-'}
                     </p>
@@ -676,8 +747,8 @@ const confirmDelete = useCallback(() => {
 
                 {detailBill.attachmentUrl && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">Documento escaneado</p>
-                    <div className="relative w-full h-80 rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Documento escaneado</p>
+                    <div className="relative w-full h-80 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/60">
                       <Image
                         src={detailBill.attachmentUrl}
                         alt="Factura escaneada"
@@ -690,7 +761,7 @@ const confirmDelete = useCallback(() => {
 
                 {detailBill.notes && (
                   <div>
-                    <p className="text-xs text-gray-500">Notas</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Notas</p>
                     <p className="text-sm">{detailBill.notes}</p>
                   </div>
                 )}
@@ -722,7 +793,7 @@ const confirmDelete = useCallback(() => {
         <Modal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeletingBillId(null) }} title="Eliminar factura">
           <div className="text-center py-4">
             <Icon name="alert" size={48} className="mx-auto text-red-500 mb-4" />
-            <p className="text-gray-600 mb-6">¿Estás seguro de que quieres eliminar esta factura?</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">¿Estás seguro de que quieres eliminar esta factura?</p>
             <div className="flex gap-2">
               <Button variant="secondary" className="flex-1" onClick={() => { setShowDeleteModal(false); setDeletingBillId(null) }}>
                 Cancelar

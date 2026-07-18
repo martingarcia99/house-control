@@ -3,6 +3,7 @@
 import { memo, useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import { Card, CardContent, CardHeader } from '@/components/ui'
+import { useTheme } from '@/lib/hooks/useTheme'
 
 interface CategoryData {
   name: string
@@ -27,14 +28,21 @@ interface DashboardChartsProps {
 const FALLBACK_COLORS = ['#2a78d6', '#008300', '#e87ba4', '#eda100', '#1baf7a', '#eb6834', '#4a3aa7', '#e34948']
 
 const CHART_MUTED = '#898781'
-const CHART_GRID = '#e1e0d9'
 
-const tooltipStyle = {
-  borderRadius: 12,
-  border: '1px solid #e5e7eb',
-  boxShadow: '0 4px 16px rgba(17, 24, 39, 0.08)',
-  fontSize: 12,
-  padding: '8px 12px',
+function chartChrome(isDark: boolean) {
+  return {
+    grid: isDark ? '#2c2c2a' : '#e1e0d9',
+    pieStroke: isDark ? '#111827' : '#fff',
+    tooltipStyle: {
+      borderRadius: 12,
+      border: isDark ? '1px solid #374151' : '1px solid #e5e7eb',
+      backgroundColor: isDark ? '#111827' : '#fff',
+      color: isDark ? '#f3f4f6' : '#111827',
+      boxShadow: '0 4px 16px rgba(17, 24, 39, 0.08)',
+      fontSize: 12,
+      padding: '8px 12px',
+    },
+  }
 }
 
 interface LegendEntry {
@@ -48,7 +56,7 @@ function renderLegend(props: { payload?: LegendEntry[] }) {
   return (
     <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 mt-2 px-2">
       {payload.map((entry, i) => (
-        <span key={i} className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+        <span key={i} className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
           <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
           {entry.value}
         </span>
@@ -58,6 +66,8 @@ function renderLegend(props: { payload?: LegendEntry[] }) {
 }
 
 export const DashboardCharts = memo(function DashboardCharts({ byCategory, monthlyTrend }: DashboardChartsProps) {
+  const { isDark } = useTheme()
+  const chrome = useMemo(() => chartChrome(isDark), [isDark])
   const chartData = useMemo(() => ({
     byCategory: byCategory.map((c, i) => ({
       name: c.name,
@@ -89,19 +99,19 @@ export const DashboardCharts = memo(function DashboardCharts({ byCategory, month
                   paddingAngle={2}
                   label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
                   labelLine={false}
-                  stroke="#fff"
+                  stroke={chrome.pieStroke}
                   strokeWidth={2}
                 >
                   {chartData.byCategory.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} contentStyle={tooltipStyle} />
+                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} contentStyle={chrome.tooltipStyle} />
                 <Legend content={renderLegend} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-500 text-center py-4 text-sm">No hay datos suficientes</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4 text-sm">No hay datos suficientes</p>
           )}
         </CardContent>
       </Card>
@@ -114,15 +124,15 @@ export const DashboardCharts = memo(function DashboardCharts({ byCategory, month
           {trendData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={trendData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke={CHART_GRID} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_MUTED }} axisLine={{ stroke: CHART_GRID }} tickLine={false} />
+                <CartesianGrid vertical={false} stroke={chrome.grid} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_MUTED }} axisLine={{ stroke: chrome.grid }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: CHART_MUTED }} width={40} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} contentStyle={tooltipStyle} cursor={{ fill: 'rgba(37, 106, 191, 0.06)' }} />
+                <Tooltip formatter={(value: number) => `${value.toFixed(2)}€`} contentStyle={chrome.tooltipStyle} cursor={{ fill: isDark ? 'rgba(57, 135, 229, 0.12)' : 'rgba(37, 106, 191, 0.06)' }} />
                 <Bar dataKey="amount" name="Gasto" fill="#2a78d6" radius={[4, 4, 0, 0]} maxBarSize={24} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-500 text-center py-4 text-sm">No hay datos suficientes</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4 text-sm">No hay datos suficientes</p>
           )}
         </CardContent>
       </Card>

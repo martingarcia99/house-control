@@ -15,8 +15,8 @@ const DashboardCharts = lazy(() =>
 function ChartSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div className="animate-pulse bg-gray-100 rounded-lg h-[200px]" />
-      <div className="animate-pulse bg-gray-100 rounded-lg h-[200px]" />
+      <div className="animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg h-[200px]" />
+      <div className="animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg h-[200px]" />
     </div>
   )
 }
@@ -64,7 +64,7 @@ const SummaryCard = memo(function SummaryCard({
   label,
   value,
   subtext,
-  subtextClass = 'text-gray-500',
+  subtextClass = 'text-gray-500 dark:text-gray-400',
   icon,
 }: {
   label: string
@@ -77,12 +77,12 @@ const SummaryCard = memo(function SummaryCard({
     <Card>
       <CardContent className="p-3.5">
         <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="flex items-center justify-center h-6 w-6 rounded-lg bg-primary-50 text-primary-600 flex-shrink-0">
+          <span className="flex items-center justify-center h-6 w-6 rounded-lg bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 flex-shrink-0">
             <Icon name={icon} size={13} />
           </span>
-          <p className="text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{label}</p>
         </div>
-        <p className="text-xl font-bold text-gray-900">{value}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
         <p className={`text-[10px] ${subtextClass}`}>{subtext}</p>
       </CardContent>
     </Card>
@@ -222,22 +222,22 @@ export default function DashboardPage() {
 
   if (loading || !dashboardData) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 pt-4 pb-3">
           <div className="max-w-6xl mx-auto flex justify-between items-center gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <IconBadge name="home" size="sm" />
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-gray-900 truncate leading-tight">CasaControl</h1>
-                <p className="text-sm text-gray-500 truncate">{household?.name}</p>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate leading-tight">CasaControl</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{household?.name}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-sm text-gray-600 hidden sm:block">{user?.name}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">{user?.name}</span>
               {user?.avatarUrl ? (
                 <Image src={user.avatarUrl} alt={user.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
               ) : (
-                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center">
                   <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
                 </div>
               )}
@@ -255,22 +255,22 @@ export default function DashboardPage() {
   const changeSymbol = dashboardData.summary.monthOverMonthChange > 0 ? '↑' : '↓'
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 px-4 pt-4 pb-3">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 pt-4 pb-3">
         <div className="max-w-6xl mx-auto flex justify-between items-center gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge name="home" size="sm" />
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-gray-900 truncate leading-tight">CasaControl</h1>
-              <p className="text-sm text-gray-500 truncate">{household?.name}</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate leading-tight">CasaControl</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{household?.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm text-gray-600 hidden sm:block">{user?.name}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">{user?.name}</span>
             {user?.avatarUrl ? (
               <Image src={user.avatarUrl} alt={user.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
             ) : (
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center">
                 <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
               </div>
             )}
@@ -279,7 +279,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-2 md:px-4 py-3">
-        <div className="flex items-center justify-between mb-4 bg-white rounded-2xl shadow-sm shadow-gray-200/60 border border-gray-100/80 px-2 py-1.5">
+        <div className="flex items-center justify-between mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm shadow-gray-200/60 border border-gray-100/80 dark:border-gray-800 px-2 py-1.5">
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                   setSelectedMonth(selectedMonth - 1)
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               <Icon name="chevron-left" size={20} />
             </button>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                   }
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               <Icon name="chevron-right" size={20} />
             </button>
@@ -319,7 +319,7 @@ export default function DashboardPage() {
               setSelectedMonth(new Date().getMonth() + 1)
               setSelectedYear(new Date().getFullYear())
             }}
-            className="text-xs font-medium text-primary-600 hover:bg-primary-50 px-2.5 py-1.5 rounded-lg transition-colors"
+            className="text-xs font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 px-2.5 py-1.5 rounded-lg transition-colors"
           >
             Hoy
           </button>
@@ -350,24 +350,24 @@ export default function DashboardPage() {
               </div>
               <div className="text-right">
                 <p className="text-lg font-bold">{membersData.summary.totalBills.toFixed(2)}€</p>
-                <p className="text-xs text-gray-500">{membersData.summary.perMember.toFixed(2)}€ / persona</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{membersData.summary.perMember.toFixed(2)}€ / persona</p>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-2">
                 {membersData.members.map((member) => (
-                  <div key={member.userId} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div key={member.userId} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800 dark:border-gray-800 last:border-0">
                     <div className="flex items-center gap-2">
                       {member.avatarUrl ? (
                         <Image src={member.avatarUrl} alt={member.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
                       ) : (
-                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center">
                           <span className="text-primary-600 text-sm font-medium">{member.name.charAt(0)}</span>
                         </div>
                       )}
                       <div>
                         <p className="font-medium text-sm">{member.name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {member.role === 'OWNER' ? 'Propietario' : member.role === 'ADMIN' ? 'Administrador' : 'Miembro'}
                         </p>
                       </div>
@@ -416,7 +416,7 @@ export default function DashboardPage() {
             {aiInsights.length > 0 ? (
               <div className="space-y-3">
                 {aiInsights.slice(0, 5).map((insight, index) => (
-                  <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-lg">
                     <div className="flex items-start gap-2">
                       <Icon 
                         name={insight.type === 'ANOMALY' ? 'alert' : insight.type === 'TIP' ? 'lightbulb' : 'sparkles'} 
@@ -425,14 +425,14 @@ export default function DashboardPage() {
                       />
                       <div>
                         <p className="font-medium text-sm">{insight.title}</p>
-                        <p className="text-sm text-gray-600">{insight.content}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{insight.content}</p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">Añade facturas para ver insights</p>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-4">Añade facturas para ver insights</p>
             )}
           </CardContent>
         </Card>

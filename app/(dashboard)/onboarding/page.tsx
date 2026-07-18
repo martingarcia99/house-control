@@ -73,25 +73,25 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50 p-4">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-primary-100" />
-      <div className="pointer-events-none absolute -top-32 -right-24 h-72 w-72 rounded-full bg-primary-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-primary-400/30 blur-3xl" />
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-950 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-gray-950 dark:via-gray-950 dark:to-gray-900" />
+      <div className="pointer-events-none absolute -top-32 -right-24 h-72 w-72 rounded-full bg-primary-300/40 dark:bg-primary-800/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-primary-400/30 dark:bg-primary-700/20 blur-3xl" />
 
       <div className="relative w-full max-w-md animate-[fadeIn_0.4s_ease-out]">
         <div className="text-center mb-8">
           <IconBadge name="home" size="lg" className="mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Configura tu hogar</h1>
-          <p className="text-gray-500 text-sm">Crea uno nuevo o únete con un código de invitación</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Configura tu hogar</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Crea uno nuevo o únete con un código de invitación</p>
         </div>
 
-        <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
+        <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
           <button
             onClick={() => setMode('create')}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
               mode === 'create'
-                ? 'bg-white text-primary-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white dark:bg-gray-900 text-primary-600 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
             }`}
           >
             Crear hogar
@@ -100,8 +100,8 @@ export default function OnboardingPage() {
             onClick={() => setMode('join')}
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
               mode === 'join'
-                ? 'bg-white text-primary-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white dark:bg-gray-900 text-primary-600 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
             }`}
           >
             Unirse a hogar
@@ -111,7 +111,7 @@ export default function OnboardingPage() {
         <Card>
           <CardContent className="p-6">
             {error && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
                 {error}
               </div>
             )}

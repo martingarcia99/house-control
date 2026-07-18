@@ -44,6 +44,19 @@ export interface Bill {
   }
 }
 
+export interface RecurringBill {
+  id: string
+  amount: number
+  description?: string | null
+  categoryId: string
+  householdId: string
+  dayOfMonth: number
+  dueDay?: number | null
+  active: boolean
+  lastRun?: string | null
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'>
+}
+
 export interface DashboardSummary {
   currentMonthTotal: number
   lastMonthTotal: number

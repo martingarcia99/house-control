@@ -22,6 +22,7 @@ model User {
   payments         Payment[]
   aiInsights       AIInsight[]
   chatMessages     ChatMessage[]
+  recurringBills   RecurringBill[]
 }
 
 model Household {
@@ -31,8 +32,9 @@ model Household {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members  HouseholdMember[]
-  bills    Bill[]
+  members        HouseholdMember[]
+  bills          Bill[]
+  recurringBills RecurringBill[]
 }
 
 model HouseholdMember {
@@ -65,7 +67,8 @@ model Category {
   householdId String?
   createdAt   DateTime @default(now())
 
-  bills Bill[]
+  bills          Bill[]
+  recurringBills RecurringBill[]
 
   @@unique([name, householdId])
   @@index([householdId])
@@ -105,6 +108,28 @@ enum BillStatus {
   PAID
   OVERDUE
   CANCELLED
+}
+
+model RecurringBill {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  categoryId  String
+  householdId String
+  createdById String
+  dayOfMonth  Int      @default(1)
+  dueDay      Int?
+  active      Boolean  @default(true)
+  lastRun     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category  Category  @relation(fields: [categoryId], references: [id])
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@index([householdId, active])
 }
 
 model Payment {

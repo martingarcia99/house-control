@@ -50,30 +50,30 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50 p-4">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-950 p-4">
       {/* Decorative background */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-primary-100" />
-      <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-primary-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-primary-400/30 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 right-1/4 h-40 w-40 rounded-full bg-primary-200/40 blur-2xl" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-gray-950 dark:via-gray-950 dark:to-gray-900" />
+      <div className="pointer-events-none absolute -top-32 -left-24 h-72 w-72 rounded-full bg-primary-300/40 dark:bg-primary-800/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-primary-400/30 dark:bg-primary-700/20 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 right-1/4 h-40 w-40 rounded-full bg-primary-200/40 dark:bg-primary-900/20 blur-2xl" />
 
       <div className="relative w-full max-w-sm animate-[fadeIn_0.4s_ease-out]">
         {/* Brand */}
         <div className="text-center mb-8">
           <IconBadge name="home" size="lg" className="mx-auto mb-4 shadow-lg" />
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">CasaControl</h1>
-          <p className="text-gray-500 text-sm">Gestiona las facturas de tu hogar, sin líos</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">CasaControl</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Gestiona las facturas de tu hogar, sin líos</p>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl bg-white/80 backdrop-blur-xl border border-white shadow-xl shadow-gray-200/60 p-6">
+        <div className="rounded-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white dark:border-gray-800 shadow-xl shadow-gray-200/60 dark:shadow-black/40 p-6">
           <div className="text-center mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Bienvenido</h2>
-            <p className="text-sm text-gray-500 mt-1">Inicia sesión para continuar</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Bienvenido</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Inicia sesión para continuar</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm text-center">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm text-center">
               {error}
             </div>
           )}
@@ -82,7 +82,7 @@ export default function LoginPage() {
             type="button"
             disabled={loading}
             onClick={handleGoogleSignIn}
-            className="group w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm transition-all hover:shadow-md hover:border-gray-300 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="group w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm transition-all hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <svg className="h-5 w-5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
@@ -120,22 +120,22 @@ export default function LoginPage() {
         {/* Feature strip */}
         <div className="mt-8 grid grid-cols-3 gap-3 text-center">
           <div className="flex flex-col items-center gap-1.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800">
               <Icon name="file" size={16} className="text-primary-600" />
             </div>
-            <span className="text-[11px] text-gray-500 leading-tight">Facturas<br />al día</span>
+            <span className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Facturas<br />al día</span>
           </div>
           <div className="flex flex-col items-center gap-1.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800">
               <Icon name="users" size={16} className="text-primary-600" />
             </div>
-            <span className="text-[11px] text-gray-500 leading-tight">Hogar<br />compartido</span>
+            <span className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Hogar<br />compartido</span>
           </div>
           <div className="flex flex-col items-center gap-1.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-gray-900 shadow-sm border border-gray-100 dark:border-gray-800">
               <Icon name="sparkles" size={16} className="text-primary-600" />
             </div>
-            <span className="text-[11px] text-gray-500 leading-tight">Insights<br />con IA</span>
+            <span className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Insights<br />con IA</span>
           </div>
         </div>
       </div>
