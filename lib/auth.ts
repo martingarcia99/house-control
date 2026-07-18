@@ -1,61 +1,36 @@
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { cookies } from 'next/headers'
+import { adminAuth } from './firebase/admin'
 import { prisma } from './prisma'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me'
+export async function getCurrentUser() {
+  const cookieStore = await cookies()
+  const sessionCookie = cookieStore.get('auth-token')?.value
 
-export interface JWTPayload {
-  userId: string
-  email: string
-}
+  if (!sessionCookie) return null
 
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12)
-}
-
-export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword)
-}
-
-export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
-}
-
-export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, false)
+
+    const user = await prisma.user.findUnique({
+      where: { firebaseUid: decoded.uid },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    })
+
+    return user
   } catch {
     return null
   }
 }
 
-export async function getCurrentUser() {
+export async function setAuthCookie(sessionCookie: string) {
   const cookieStore = await cookies()
-  const token = cookieStore.get('auth-token')?.value
-
-  if (!token) return null
-
-  const payload = verifyToken(token)
-  if (!payload) return null
-
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      avatarUrl: true,
-      createdAt: true,
-    },
-  })
-
-  return user
-}
-
-export async function setAuthCookie(token: string) {
-  const cookieStore = await cookies()
-  cookieStore.set('auth-token', token, {
+  cookieStore.set('auth-token', sessionCookie, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

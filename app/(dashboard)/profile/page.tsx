@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { signOut } from 'firebase/auth'
+import { auth } from '@/lib/firebase/client'
 import { useAppStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, Button, Input, Modal } from '@/components/ui'
 import { Icon } from '@/components/ui'
@@ -70,10 +72,13 @@ export default function ProfilePage() {
 
   async function handleLogout() {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      })
+      await Promise.all([
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+        }),
+        signOut(auth),
+      ])
       setUser(null)
       setHousehold(null)
       router.push('/login')
